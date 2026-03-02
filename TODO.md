@@ -8,75 +8,79 @@ Unicorn (https://github.com/art-w/unicorn) proves the model works in OCaml with 
 
 Reference: ~/unicorn_tutorial.ml — read this first. It's 410 lines covering the full algebra.
 
-## The core insight
+## Current state
 
-Optics make structure visible. A lens focuses on a field of a product type; a prism focuses on a case of a sum type. Both are composable values with laws. Reactivity grounded in optics means derived state is structural — you declare relationships, the framework maintains consistency.
+Implemented and tested (90 tests):
+- `Lens<A, B>` — get/set with composition, field(), fst(), snd(), id()
+- `Prism<A, B>` — match/inject with composition, some(), iso()
+- `Signal<A>` — reactive cell with map(), focus(lens), narrow(prism)
+- `computed()` — derived signal from multiple sources
+- `Traversal<A, B>` — focus on zero or more elements: each(), filtered(), nth()
+- `product()` / `stateful()` — pair signals, encapsulate local state
+- Vue adapter — signalToRef(), readonlySignalToRef(), refToSignal(), useSignals()
+- TodoMVC — full state in ~65 lines, zero effects, 14 tests
 
-The key laws:
-- `on lens (a & b) = on lens a & on lens b`  (distributivity)
-- `on f (on g w) = on (compose f g) w`  (composition)
-- `stateful w dynamic = w`  (dynamic identity)
+## Incremental (do these first — easier)
 
-## Next: define the algebra in TypeScript
+### 1. Stricter TypeScript config
+Add to tsconfig.json:
+- `noUncheckedIndexedAccess: true` — would have caught the nth() array indexing issue
+- `exactOptionalPropertyTypes: true`
+Fix any errors that arise.
 
-Start with types, not implementation. Get the interfaces right first.
+### 2. Fix narrow.focus / narrow.narrow stubs
+`ProductSignal.narrow()` returns a signal whose `focus` and `narrow` methods throw.
+These are edge cases but should either be implemented or the type system should
+prevent calling them (i.e. return a type without those methods).
 
-### 1. Core types
+### 3. Batching for product.set([a, b])
+Currently fires subscribers twice (once per child signal).
+Options:
+- Microtask batching (makes signal async — changes semantics)
+- Synchronous batch queue: collect notifications, deduplicate, flush at end of set()
+- Document as known limitation and accept for now
+Recommendation: implement a simple synchronous batch() utility and use it in product.set.
 
+### 4. cond() combinator
+Conditional signal — only propagates when a predicate holds:
 ```ts
-// A lens focuses on a field B within a structure A
-interface Lens<A, B> {
-  get(a: A): B
-  set(a: A, b: B): A
-}
+function cond<A>(pred: (a: A) => boolean, s: Signal<A>): ReadonlySignal<A | undefined>
+```
+Unicorn law: `cond p (cond q w) = cond (fun x -> p x && q x) w`
 
-// A prism focuses on a case B within a sum type A
-interface Prism<A, B> {
-  match(a: A): B | undefined
-  inject(b: B): A
-}
-
-// Laws (as property-based tests):
-// Lens: get(set(a, b)) = b
-// Lens: set(a, get(a)) = a
-// Lens: set(set(a, b1), b2) = set(a, b2)
-// Prism: match(inject(b)) = b
-// Prism: if match(a) = b then inject(b) = a
+### 5. Property-based tests with fast-check
+The lens/prism laws are currently tested with specific values.
+fast-check would verify them for arbitrary inputs:
+```ts
+import fc from 'fast-check'
+// get(set(a, b)) = b  for all a, b
 ```
 
-### 2. Composition
-
+### 6. React adapter
+Alongside the Vue adapter:
 ```ts
-function composeLens<A, B, C>(ab: Lens<A, B>, bc: Lens<B, C>): Lens<A, C>
-function composePrism<A, B, C>(ab: Prism<A, B>, bc: Prism<B, C>): Prism<A, C>
+function useSignal<A>(s: Signal<A>): [A, (a: A) => void]
+function useReadonlySignal<A>(s: ReadonlySignal<A>): A
 ```
+Uses useSyncExternalStore internally.
 
-### 3. Reactivity layer
+## Big unknowns (tackle after incremental)
 
-A `Signal<A>` is a reactive cell holding a value of type A. Reading it tracks the dependency; writing it propagates to dependents.
+### async
+Data fetching, loading states, errors, retries. This is where the model
+either holds or needs extension. Options to explore:
+- `AsyncSignal<A>` — a signal over `{ status: 'loading' | 'error' | 'ok', value?: A, error?: unknown }`
+- Integrate with TanStack Query at the adapter layer (keep rainbow sync-only)
+- A `resource()` primitive inspired by SolidJS
 
-```ts
-interface Signal<A> {
-  get(): A
-  set(a: A): void
-  // derived:
-  map<B>(f: (a: A) => B): Signal<B>  // read-only
-  focus<B>(lens: Lens<A, B>): Signal<B>  // read-write
-}
-```
+### dynamic combinator
+`dynamic` in Unicorn: a value of type `(widget * state) t`.
+The law `stateful w dynamic = w` makes it the most powerful combinator —
+enables moving/duplicating stateful components while preserving internal state.
+Needs more design thought before implementing.
 
-`signal.focus(lens)` is the key primitive — a focused signal reads through the lens and writes back through it. This is what makes `on name input_string` work.
-
-### 4. Laws as tests
-
-Write property-based tests (fast-check) verifying the lens/prism laws before writing any UI layer. The laws are the spec.
-
-## Later
-
-- Traversals (focus on multiple elements — e.g. all items in a list)
-- Vue adapter: `Signal<A>` ↔ Vue `Ref<A>`
-- React adapter: `Signal<A>` ↔ useState/useSyncExternalStore
-- `stateful` combinator for local state encapsulation
-- `dynamic` combinator for widget-as-value
-- Form primitives: `on field input` pattern
-- TodoMVC as the first real test of the model
+### Form primitives
+The `on field input_string` pattern from Unicorn.
+Rainbow has the pieces (focus + signal), but a form-specific API
+(validation, touched/dirty, submission) would make this a compelling
+alternative to react-hook-form.
