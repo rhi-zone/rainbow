@@ -11,6 +11,8 @@ export { signal, batch } from './signal.ts'
 
 export { computed } from './computed.ts'
 
+export { cond } from './cond.ts'
+
 export { product, stateful } from './product.ts'
 
 export type { Traversal } from './traversal.ts'
