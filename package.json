@@ -1,0 +1,29 @@
+{
+  "name": "rainbow",
+  "version": "0.1.0",
+  "description": "Optics-based reactivity — structured state for the web",
+  "type": "module",
+  "main": "./dist/rainbow.umd.cjs",
+  "module": "./dist/rainbow.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/rainbow.js",
+      "require": "./dist/rainbow.umd.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vitest": "^2.0.0"
+  }
+}
