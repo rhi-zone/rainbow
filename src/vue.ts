@@ -40,6 +40,26 @@ export function readonlySignalToRef<A>(s: ReadonlySignal<A>): Ref<A> {
 }
 
 /**
+ * Convert a map of signals to a map of Vue Refs in one call.
+ *
+ * Distinguishes Signal (read-write) from ReadonlySignal (read-only)
+ * via duck-typing on the `set` method.
+ *
+ * Usage:
+ *   const { draft, filteredTodos, activeCount } = useSignals({ draft, filteredTodos, activeCount })
+ */
+export function useSignals<T extends Record<string, Signal<unknown> | ReadonlySignal<unknown>>>(
+  signals: T,
+): { [K in keyof T]: Ref<T[K] extends Signal<infer A> | ReadonlySignal<infer A> ? A : never> } {
+  return Object.fromEntries(
+    Object.entries(signals).map(([key, s]) => [
+      key,
+      'set' in s ? signalToRef(s as Signal<unknown>) : readonlySignalToRef(s),
+    ]),
+  ) as ReturnType<typeof useSignals<T>>
+}
+
+/**
  * Adapt a Vue Ref<A> to a rainbow Signal<A>.
  *
  * Creates a rainbow signal backed by the ref's current value,
