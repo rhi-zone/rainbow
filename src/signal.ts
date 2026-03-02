@@ -3,6 +3,39 @@ import type { Prism } from './prism.ts'
 
 type Subscriber<A> = (value: A) => void
 
+// ---------------------------------------------------------------------------
+// Synchronous batch queue
+// ---------------------------------------------------------------------------
+// During a batch, RootSignal.set() queues notifications rather than firing
+// them immediately. The Map key is the subscriber function itself, providing
+// automatic deduplication: if the same subscriber is queued twice (e.g. via
+// two child signals of a ProductSignal), it is only called once at flush.
+let _batchDepth = 0
+const _pending = new Map<object, () => void>()
+
+/**
+ * Run `fn` synchronously; defer and deduplicate all signal notifications
+ * until `fn` returns, then flush them in one pass.
+ *
+ * Batches may nest — flush only happens when the outermost batch completes.
+ */
+export function batch(fn: () => void): void {
+  _batchDepth++
+  try {
+    fn()
+  } finally {
+    _batchDepth--
+    if (_batchDepth === 0) {
+      // Drain in a loop to handle subscribers that trigger further signals.
+      while (_pending.size > 0) {
+        const thunks = [..._pending.values()]
+        _pending.clear()
+        for (const thunk of thunks) thunk()
+      }
+    }
+  }
+}
+
 /**
  * A Signal<A> is a reactive cell holding a value of type A.
  * Reading tracks the dependency; writing propagates to subscribers.
@@ -40,7 +73,15 @@ class RootSignal<A> implements Signal<A> {
   set(a: A): void {
     if (Object.is(this._value, a)) return
     this._value = a
-    for (const fn of this._subscribers) fn(a)
+    if (_batchDepth > 0) {
+      for (const fn of this._subscribers) {
+        // Capture `fn` and `this` in a closure; at flush time `this._value`
+        // is the final value, so late-reading subscribers see it correctly.
+        _pending.set(fn, () => fn(this._value))
+      }
+    } else {
+      for (const fn of this._subscribers) fn(a)
+    }
   }
 
   subscribe(fn: Subscriber<A>): () => void {
@@ -176,4 +217,12 @@ class NarrowedSignal<A, B> implements Signal<B | undefined> {
 
 export function signal<A>(initial: A): Signal<A> {
   return new RootSignal(initial)
+}
+
+export function focusSignal<A, B>(source: Signal<A>, lens: Lens<A, B>): Signal<B> {
+  return new FocusedSignal(source, lens)
+}
+
+export function narrowSignal<A, B>(source: Signal<A>, prism: Prism<A, B>): Signal<B | undefined> {
+  return new NarrowedSignal(source, prism)
 }

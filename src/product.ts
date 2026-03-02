@@ -1,4 +1,4 @@
-import { signal } from './signal.ts'
+import { signal, batch, focusSignal, narrowSignal } from './signal.ts'
 import type { Signal, ReadonlySignal } from './signal.ts'
 import type { Lens } from './lens.ts'
 import type { Prism } from './prism.ts'
@@ -21,13 +21,19 @@ class ProductSignal<A, B> implements Signal<[A, B]> {
   }
 
   set([a, b]: [A, B]): void {
-    this._a.set(a)
-    this._b.set(b)
+    batch(() => {
+      this._a.set(a)
+      this._b.set(b)
+    })
   }
 
   subscribe(fn: Subscriber<[A, B]>): () => void {
-    const unsub1 = this._a.subscribe(() => fn(this.get()))
-    const unsub2 = this._b.subscribe(() => fn(this.get()))
+    // Share a single notify function so batch() can deduplicate it:
+    // both child subscriptions point to the same function object,
+    // so if both fire in one batch the Map key deduplicates them.
+    const notify = () => fn(this.get())
+    const unsub1 = this._a.subscribe(notify)
+    const unsub2 = this._b.subscribe(notify)
     return () => { unsub1(); unsub2() }
   }
 
@@ -42,67 +48,11 @@ class ProductSignal<A, B> implements Signal<[A, B]> {
   }
 
   focus<C>(lens: Lens<[A, B], C>): Signal<C> {
-    const self = this
-    let prevC = lens.get(self.get())
-
-    const subscribers = new Set<Subscriber<C>>()
-
-    self.subscribe((ab) => {
-      const next = lens.get(ab)
-      if (!Object.is(prevC, next)) {
-        prevC = next
-        for (const fn of subscribers) fn(next)
-      }
-    })
-
-    return {
-      get: () => lens.get(self.get()),
-      set: (c) => self.set(lens.set(self.get(), c)),
-      subscribe: (fn) => { subscribers.add(fn); return () => subscribers.delete(fn) },
-      map: (f) => {
-        const s = signal(f(lens.get(self.get())))
-        subscribers.add((c) => s.set(f(c)))
-        return s
-      },
-      focus: (innerLens) => self.focus({
-        get: (ab) => innerLens.get(lens.get(ab)),
-        set: (ab, d) => lens.set(ab, innerLens.set(lens.get(ab), d)),
-      }),
-      narrow: (prism) => self.narrow({
-        match: (ab) => prism.match(lens.get(ab)),
-        inject: (c) => lens.set(self.get(), prism.inject(c)),
-      }),
-    }
+    return focusSignal(this, lens)
   }
 
   narrow<C>(prism: Prism<[A, B], C>): Signal<C | undefined> {
-    const self = this
-    let prevC = prism.match(self.get())
-
-    const subscribers = new Set<Subscriber<C | undefined>>()
-
-    self.subscribe((ab) => {
-      const next = prism.match(ab)
-      if (!Object.is(prevC, next)) {
-        prevC = next
-        for (const fn of subscribers) fn(next)
-      }
-    })
-
-    return {
-      get: () => prism.match(self.get()),
-      set: (c) => { if (c !== undefined) self.set(prism.inject(c)) },
-      subscribe: (fn) => { subscribers.add(fn); return () => subscribers.delete(fn) },
-      map: (f) => {
-        const s = signal(f(prism.match(self.get())))
-        subscribers.add((c) => s.set(f(c)))
-        return s
-      },
-      // TODO: focus/narrow on a narrowed product signal requires rethinking
-      // the C | undefined threading. Not needed for current use cases.
-      focus: (_lens) => { throw new Error('focus on narrowed product signal not yet implemented') },
-      narrow: (_prism) => { throw new Error('narrow on narrowed product signal not yet implemented') },
-    }
+    return narrowSignal(this, prism)
   }
 }
 

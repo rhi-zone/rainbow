@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
 import { signal } from './signal.ts'
 import { product, stateful } from './product.ts'
-import { fst, snd } from './lens.ts'
+import { fst, snd, lens } from './lens.ts'
+import { prism, some } from './prism.ts'
 
 describe('product', () => {
   it('gets pair from both signals', () => {
@@ -91,6 +92,89 @@ describe('product.focus via fst/snd', () => {
     b.set('y')   // should trigger
     expect(fn).toHaveBeenCalledTimes(1)
     expect(fn).toHaveBeenCalledWith('y')
+  })
+})
+
+describe('product batching', () => {
+  it('set([a, b]) fires subscribers exactly once', () => {
+    const a = signal(1)
+    const b = signal('x')
+    const p = product(a, b)
+    const fn = vi.fn()
+    p.subscribe(fn)
+    p.set([2, 'y'])
+    expect(fn).toHaveBeenCalledTimes(1)
+    expect(fn).toHaveBeenCalledWith([2, 'y'])
+  })
+
+  it('independent signal updates outside a batch still fire separately', () => {
+    const a = signal(1)
+    const b = signal('x')
+    const p = product(a, b)
+    const fn = vi.fn()
+    p.subscribe(fn)
+    a.set(2)
+    b.set('y')
+    expect(fn).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('product.narrow and compositions', () => {
+  // Prism that matches the first element only when it is positive
+  const positiveFirst = prism<[number, string], number>(
+    ([n, _]) => n > 0 ? n : undefined,
+    (n) => [n, 'default'],
+  )
+
+  it('narrow reads via prism', () => {
+    const p = product(signal(5), signal('x'))
+    expect(p.narrow(positiveFirst).get()).toBe(5)
+  })
+
+  it('narrow returns undefined when prism does not match', () => {
+    const p = product(signal(-1), signal('x'))
+    expect(p.narrow(positiveFirst).get()).toBeUndefined()
+  })
+
+  it('narrow.set writes back via prism', () => {
+    const a = signal(1)
+    const p = product(a, signal('x'))
+    p.narrow(positiveFirst).set(99)
+    expect(a.get()).toBe(99)
+  })
+
+  it('narrow.narrow composes correctly', () => {
+    const a = signal(5)
+    const p = product(a, signal('x'))
+    const n = p.narrow(positiveFirst)           // Signal<number | undefined>
+    const nn = n.narrow(some<number>())         // Signal<number | undefined>
+    expect(nn.get()).toBe(5)
+    a.set(-1)
+    expect(nn.get()).toBeUndefined()
+  })
+
+  it('narrow.focus reads through lens on narrowed value', () => {
+    const a = signal(42)
+    const p = product(a, signal('x'))
+    const n = p.narrow(positiveFirst)           // Signal<number | undefined>
+    // Lens: number | undefined → string (display)
+    const asString = lens<number | undefined, string>(
+      (v) => String(v ?? ''),
+      (_, s) => (s === '' ? undefined : Number(s)),
+    )
+    expect(n.focus(asString).get()).toBe('42')
+  })
+
+  it('narrow.focus.set writes back through both', () => {
+    const a = signal(1)
+    const p = product(a, signal('x'))
+    const n = p.narrow(positiveFirst)
+    const asString = lens<number | undefined, string>(
+      (v) => String(v ?? ''),
+      (_, s) => (s === '' ? undefined : Number(s)),
+    )
+    n.focus(asString).set('99')
+    expect(a.get()).toBe(99)
   })
 })
 

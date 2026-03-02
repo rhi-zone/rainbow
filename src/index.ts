@@ -7,7 +7,7 @@ export type { Prism } from './prism.ts'
 export { prism, composePrism, some, iso } from './prism.ts'
 
 export type { Signal, ReadonlySignal } from './signal.ts'
-export { signal } from './signal.ts'
+export { signal, batch } from './signal.ts'
 
 export { computed } from './computed.ts'
 
