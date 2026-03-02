@@ -20,49 +20,14 @@ Implemented and tested (90 tests):
 - Vue adapter — signalToRef(), readonlySignalToRef(), refToSignal(), useSignals()
 - TodoMVC — full state in ~65 lines, zero effects, 14 tests
 
-## Incremental (do these first — easier)
+## Incremental — done
 
-### 1. Stricter TypeScript config
-Add to tsconfig.json:
-- `noUncheckedIndexedAccess: true` — would have caught the nth() array indexing issue
-- `exactOptionalPropertyTypes: true`
-Fix any errors that arise.
-
-### 2. Fix narrow.focus / narrow.narrow stubs
-`ProductSignal.narrow()` returns a signal whose `focus` and `narrow` methods throw.
-These are edge cases but should either be implemented or the type system should
-prevent calling them (i.e. return a type without those methods).
-
-### 3. Batching for product.set([a, b])
-Currently fires subscribers twice (once per child signal).
-Options:
-- Microtask batching (makes signal async — changes semantics)
-- Synchronous batch queue: collect notifications, deduplicate, flush at end of set()
-- Document as known limitation and accept for now
-Recommendation: implement a simple synchronous batch() utility and use it in product.set.
-
-### 4. cond() combinator
-Conditional signal — only propagates when a predicate holds:
-```ts
-function cond<A>(pred: (a: A) => boolean, s: Signal<A>): ReadonlySignal<A | undefined>
-```
-Unicorn law: `cond p (cond q w) = cond (fun x -> p x && q x) w`
-
-### 5. Property-based tests with fast-check
-The lens/prism laws are currently tested with specific values.
-fast-check would verify them for arbitrary inputs:
-```ts
-import fc from 'fast-check'
-// get(set(a, b)) = b  for all a, b
-```
-
-### 6. React adapter
-Alongside the Vue adapter:
-```ts
-function useSignal<A>(s: Signal<A>): [A, (a: A) => void]
-function useReadonlySignal<A>(s: ReadonlySignal<A>): A
-```
-Uses useSyncExternalStore internally.
+- [x] Stricter TS config: `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`
+- [x] Fix narrow.focus / narrow.narrow stubs — exported `focusSignal`/`narrowSignal`, ProductSignal delegates
+- [x] Batching: `batch()` in signal.ts; product.set fires subscribers exactly once
+- [x] `cond()` combinator — with composition law test
+- [x] Property-based tests with fast-check — lens/prism/signal/cond laws in `src/laws.test.ts`
+- [x] React adapter — `useSignal()` / `useReadonlySignal()` via `useSyncExternalStore` in `src/react.ts`
 
 ## Big unknowns (tackle after incremental)
 
