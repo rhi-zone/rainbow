@@ -39,10 +39,9 @@ either holds or needs extension. Options to explore:
 - A `resource()` primitive inspired by SolidJS
 
 ### dynamic combinator
-`dynamic` in Unicorn: a value of type `(widget * state) t`.
-The law `stateful w dynamic = w` makes it the most powerful combinator —
-enables moving/duplicating stateful components while preserving internal state.
-Needs more design thought before implementing.
+Not in scope. Rainbow has no widget layer, so `dynamic` has no natural home.
+The problems it solves (keyed reordering, identity-preserving swap) are better
+addressed by making identity explicit in the data model. See `docs/design/dynamic.md`.
 
 ### Form primitives
 The `on field input_string` pattern from Unicorn.
