@@ -11,6 +11,8 @@ export { signal } from './signal.ts'
 
 export { computed } from './computed.ts'
 
+export { product, stateful } from './product.ts'
+
 export type { Traversal } from './traversal.ts'
 export { traversal, each, filtered, nth, composeWithLens, composeTraversal } from './traversal.ts'
 
