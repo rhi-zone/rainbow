@@ -22,8 +22,14 @@ export default withMermaid(defineConfig({
       {
         text: 'API',
         items: [
-          { text: 'Lens', link: '/api/lens' },
-          { text: 'Prism', link: '/api/prism' },
+          { text: 'API Reference', link: '/api/' },
+        ],
+      },
+      {
+        text: 'Design Notes',
+        collapsed: true,
+        items: [
+          { text: 'Why no dynamic?', link: '/design/dynamic' },
         ],
       },
     ],
