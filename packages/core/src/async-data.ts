@@ -47,22 +47,40 @@ export const isSuccess  = <T, E>(ad: AsyncData<T, E>): ad is { status: 'success'
 export const map = <T, U, E>(
   ad: AsyncData<T, E>,
   f: (value: T) => U,
-): AsyncData<U, E> =>
-  isSuccess(ad) ? success(f(ad.value)) : ad
+): AsyncData<U, E> => {
+  switch (ad.status) {
+    case 'success':  return success(f(ad.value))
+    case 'failure':  return failure(ad.error)
+    case 'loading':  return loading
+    case 'notAsked': return notAsked
+  }
+}
 
 /** Transform the error value, leaving other states untouched. */
 export const mapError = <T, E, F>(
   ad: AsyncData<T, E>,
   f: (error: E) => F,
-): AsyncData<T, F> =>
-  isFailure(ad) ? failure(f(ad.error)) : ad
+): AsyncData<T, F> => {
+  switch (ad.status) {
+    case 'failure':  return failure(f(ad.error))
+    case 'success':  return success(ad.value)
+    case 'loading':  return loading
+    case 'notAsked': return notAsked
+  }
+}
 
 /** Chain async operations — flatMap over the success case. */
 export const chain = <T, U, E>(
   ad: AsyncData<T, E>,
   f: (value: T) => AsyncData<U, E>,
-): AsyncData<U, E> =>
-  isSuccess(ad) ? f(ad.value) : ad
+): AsyncData<U, E> => {
+  switch (ad.status) {
+    case 'success':  return f(ad.value)
+    case 'failure':  return failure(ad.error)
+    case 'loading':  return loading
+    case 'notAsked': return notAsked
+  }
+}
 
 /** Unwrap with a fallback for non-success states. */
 export const getOrElse = <T, E>(ad: AsyncData<T, E>, fallback: T): T =>
