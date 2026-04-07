@@ -16,8 +16,8 @@
   "files": ["dist"],
   "scripts": {
     "dev":        "vite build --watch",
-    "build":      "vite build && tsc --emitDeclarationOnly",
-    "typecheck":  "tsc --noEmit",
+    "build":      "vite build && tsgo --emitDeclarationOnly",
+    "typecheck":  "tsgo --noEmit",
     "test":       "vitest run",
     "test:watch": "vitest"
   },
