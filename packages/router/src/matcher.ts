@@ -1,4 +1,4 @@
-import type { RouteTree, RouteConfig, MatchedRoute } from './types.ts'
+import type { RouteTree, RouteConfig, MatchedRoute, ParamParser } from './types.ts'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -7,7 +7,7 @@ import type { RouteTree, RouteConfig, MatchedRoute } from './types.ts'
 /** Normalize a route node value into a RouteConfig. */
 function toConfig(node: unknown): RouteConfig {
   if (node === null || node === undefined) return {}
-  if (typeof node === 'object' && !isSubtree(node as object)) return node as RouteConfig
+  if (typeof node === 'object' && !isSubtree(node)) return node as RouteConfig
   // Plain component (function/class) used as shorthand
   return { component: node }
 }
@@ -19,15 +19,21 @@ const CONFIG_KEYS = new Set(['component', 'loader', 'params', 'scroll'])
  * A node is a subtree if it has at least one key that isn't a RouteConfig key.
  * This distinguishes { component: X } (config) from { admin: X, '': Y } (subtree).
  * Mixed nodes like { params: X, '': Y, _id: Z } are also subtrees.
+ *
+ * Accepts `unknown` so call sites avoid the `as object` boilerplate.
  */
-function isSubtree(node: object): node is RouteTree {
-  return Object.keys(node).some(k => !CONFIG_KEYS.has(k))
+function isSubtree(node: unknown): node is RouteTree {
+  return node !== null && typeof node === 'object' &&
+    Object.keys(node as object).some(k => !CONFIG_KEYS.has(k))
 }
 
 /** Find the dynamic segment key in a subtree node, if any. */
 function findDynKey(node: RouteTree): string | undefined {
   return Object.keys(node).find(k => k.startsWith('_'))
 }
+
+/** Minimal structural type for accessing params off a route node. */
+type HasParams = { readonly params?: Record<string, ParamParser<unknown>> }
 
 // ---------------------------------------------------------------------------
 // Matcher
@@ -50,7 +56,8 @@ export function match(tree: RouteTree, pathname: string): MatchedRoute | null {
   const layouts: RouteConfig[] = []
 
   // Collect root-level layout if present
-  if ('' in tree) layouts.push(toConfig(tree['']))
+  const root = (tree as Record<string, unknown>)['']
+  if (root !== undefined) layouts.push(toConfig(root))
 
   let node: RouteTree = tree
 
@@ -67,15 +74,10 @@ export function match(tree: RouteTree, pathname: string): MatchedRoute | null {
       if (dynKey === undefined) return null
 
       const paramName = dynKey.slice(1)
-      const nodeConfig = node as Record<string, unknown>
-      const dynNode = nodeConfig[dynKey] as RouteTree | RouteConfig | unknown
+      const dynNode: unknown = (node as Record<string, unknown>)[dynKey]
 
       // Run ParamParser if declared on the dynamic node
-      const config = isSubtree(dynNode as object)
-        ? (dynNode as RouteTree)
-        : dynNode
-
-      const parsers = (config as RouteConfig)?.params
+      const parsers = (dynNode as HasParams)?.params
       if (parsers && paramName in parsers) {
         const parsed = parsers[paramName]!(seg)
         if (parsed === null) return null
@@ -90,24 +92,18 @@ export function match(tree: RouteTree, pathname: string): MatchedRoute | null {
     // Can't continue walking
     if (next === null || next === undefined) return null
 
-    const nextIsSubtree = typeof next === 'object' && isSubtree(next as object)
-
-    if (!nextIsSubtree) {
+    if (!isSubtree(next)) {
       // Leaf shorthand — only valid on last segment
       if (!isLast) return null
-      return {
-        layouts,
-        leaf: toConfig(next),
-        params,
-        pathname,
-      }
+      return { layouts, leaf: toConfig(next), params, pathname }
     }
 
-    node = next as RouteTree
+    node = next
 
     // Collect layout from `''` key at intermediate nodes
-    if (!isLast && '' in node) {
-      layouts.push(toConfig((node as Record<string, unknown>)['']))
+    if (!isLast) {
+      const mid = (node as Record<string, unknown>)['']
+      if (mid !== undefined) layouts.push(toConfig(mid))
     }
   }
 
@@ -115,10 +111,5 @@ export function match(tree: RouteTree, pathname: string): MatchedRoute | null {
   const leafNode = (node as Record<string, unknown>)['']
   if (leafNode === undefined) return null
 
-  return {
-    layouts,
-    leaf: toConfig(leafNode),
-    params,
-    pathname,
-  }
+  return { layouts, leaf: toConfig(leafNode), params, pathname }
 }
