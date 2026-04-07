@@ -29,21 +29,24 @@ describe('map', () => {
   test('passes through notAsked', () => expect(map(notAsked, x => x)).toBe(notAsked))
   test('passes through loading',  () => expect(map(loading, x => x)).toBe(loading))
   test('passes through failure',  () => {
-    expect(map(failure('err'), x => x)).toEqual(failure('err'))
+    const f = failure('err')
+    expect(map(f, x => x)).toBe(f)
   })
 })
 
 describe('mapError', () => {
   test('transforms failure',     () => expect(mapError(failure('oops'), e => e + '!')).toEqual(failure('oops!')))
   test('passes through success', () => {
-    expect(mapError(success(1), e => e)).toEqual(success(1))
+    const s = success(1)
+    expect(mapError(s, e => e)).toBe(s)
   })
 })
 
 describe('chain', () => {
   test('chains on success',          () => expect(chain(success(2), x => success(x + 1))).toEqual(success(3)))
   test('short-circuits on failure',  () => {
-    expect(chain(failure('err'), () => success(1))).toEqual(failure('err'))
+    const f = failure('err')
+    expect(chain(f, () => success(1))).toBe(f)
   })
   test('short-circuits on loading',  () => expect(chain(loading,  () => success(1))).toBe(loading))
   test('short-circuits on notAsked', () => expect(chain(notAsked, () => success(1))).toBe(notAsked))
