@@ -4,7 +4,7 @@
  * The entire app state is a single signal. All derived values are
  * structural (computed/map), not imperative (no effects).
  */
-import { signal, computed } from '../../../src/index.ts'
+import { signal, computed } from '@rhi-zone/rainbow'
 import { stateful } from '../../../src/product.ts'
 import { fst, snd, field } from '../../../src/lens.ts'
 import { each, filtered } from '../../../src/traversal.ts'

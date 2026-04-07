@@ -1,0 +1,8 @@
+{
+  "name": "@rhi-zone/rainbow-example-todomvc",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@rhi-zone/rainbow": "workspace:*"
+  }
+}

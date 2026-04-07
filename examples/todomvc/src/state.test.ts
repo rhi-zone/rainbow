@@ -2,10 +2,10 @@
  * TodoMVC state tests — verifying the model without any framework.
  */
 import { describe, it, expect, beforeEach } from 'vitest'
-import { signal } from '../../../src/index.ts'
-import { stateful } from '../../../src/product.ts'
-import { fst, snd } from '../../../src/lens.ts'
-import { computed } from '../../../src/index.ts'
+import { signal } from '@rhi-zone/rainbow'
+import { stateful } from '@rhi-zone/rainbow'
+import { fst, snd } from '@rhi-zone/rainbow'
+import { computed } from '@rhi-zone/rainbow'
 import type { Todo, Filter } from './state.ts'
 
 // Re-implement state locally so each test gets a fresh instance

@@ -1,0 +1,40 @@
+{
+  "name": "@rhi-zone/rainbow-router",
+  "version": "0.0.1",
+  "description": "Trie-based SPA router for rainbow",
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types":  "./dist/index.d.ts"
+    },
+    "./scroll": {
+      "import": "./dist/scroll.js",
+      "types":  "./dist/scroll.d.ts"
+    },
+    "./defaults": {
+      "import": "./dist/defaults.js",
+      "types":  "./dist/defaults.d.ts"
+    },
+    "./adapters/standard-schema": {
+      "import": "./dist/adapters/standard-schema.js",
+      "types":  "./dist/adapters/standard-schema.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "dev":       "vite build --watch",
+    "build":     "vite build && tsc --emitDeclarationOnly",
+    "typecheck": "tsc --noEmit",
+    "test":      "vitest run"
+  },
+  "dependencies": {
+    "@rhi-zone/rainbow": "workspace:*"
+  },
+  "devDependencies": {
+    "@standard-schema/spec": "^1.0.0",
+    "vite":   "^6.0.0",
+    "vitest": "^2.0.0"
+  }
+}

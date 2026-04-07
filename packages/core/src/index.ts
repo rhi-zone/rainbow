@@ -18,5 +18,16 @@ export { product, stateful } from './product.ts'
 export type { Traversal } from './traversal.ts'
 export { traversal, each, filtered, nth, composeWithLens, composeTraversal } from './traversal.ts'
 
+export type { AsyncData } from './async-data.ts'
+export {
+  notAsked, loading, failure, success,
+  isNotAsked, isLoading, isFailure, isSuccess,
+  map as mapAsyncData,
+  mapError,
+  chain as chainAsyncData,
+  getOrElse,
+  fold,
+} from './async-data.ts'
+
 // Vue adapter (import from 'rainbow/vue' to avoid pulling in Vue as a dependency)
 // export { signalToRef, readonlySignalToRef, refToSignal } from './vue.ts'
