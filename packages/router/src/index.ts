@@ -1,2 +1,6 @@
 export type { ParamParser, ScrollHandler, ScrollNav, LoaderCtx, LoaderFn, RouteConfig, RouteTree, MatchedRoute, LoaderState } from './types.ts'
 export { match } from './matcher.ts'
+export type { RouterOptions, Router } from './router.ts'
+export { createRouter } from './router.ts'
+export type { Mountable, MountableFactory } from './mountable.ts'
+export { defineMountable } from './mountable.ts'
