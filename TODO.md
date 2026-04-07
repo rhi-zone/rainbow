@@ -29,6 +29,16 @@ Implemented and tested (90 tests):
 - [x] Property-based tests with fast-check — lens/prism/signal/cond laws in `src/laws.test.ts`
 - [x] React adapter — `useSignal()` / `useReadonlySignal()` via `useSyncExternalStore` in `src/react.ts`
 
+## Open questions — router
+
+- **Does `computed` need an effect primitive for the loader model?**
+  The router's loader lifecycle is currently implemented imperatively inside
+  `createRouter` (subscribe → abort previous → run new loader → set signal).
+  An `effect(fn)` primitive — a subscriber that runs a side-effectful function
+  when its dependencies change — would make this pattern first-class and reusable
+  (e.g. for any async operation, not just loaders). Worth revisiting once there
+  are more consumers of the pattern.
+
 ## Big unknowns (tackle after incremental)
 
 ### async
