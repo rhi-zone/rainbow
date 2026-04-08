@@ -4,7 +4,7 @@ export type { Lens } from './lens.ts'
 export { lens, composeLens, field, index, id, arrayOf, recordOf, mapOf } from './lens.ts'
 
 export type { Prism } from './prism.ts'
-export { prism, composePrism, some, iso } from './prism.ts'
+export { prism, composePrism, some, iso, guard, nullable, tagged } from './prism.ts'
 
 export type { Signal, ReadonlySignal } from './signal.ts'
 export { signal, batch } from './signal.ts'

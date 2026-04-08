@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { prism, composePrism, some, iso } from './prism.ts'
+import { prism, composePrism, some, iso, guard, nullable, tagged } from './prism.ts'
 
 type Shape = { kind: 'circle'; r: number } | { kind: 'rect'; w: number; h: number }
 
@@ -66,4 +66,42 @@ describe('iso', () => {
   const strNum = iso<string, number>(Number, String)
   it('matches via to', () => expect(strNum.match('42')).toBe(42))
   it('injects via from', () => expect(strNum.inject(42)).toBe('42'))
+})
+
+describe('guard', () => {
+  const positive = guard((n: number): n is number => n > 0)
+  it('matches when predicate holds', () => expect(positive.match(5)).toBe(5))
+  it('returns undefined when predicate fails', () => expect(positive.match(-1)).toBeUndefined())
+  it('injects', () => expect(positive.inject(3)).toBe(3))
+})
+
+describe('nullable', () => {
+  const p = nullable<number>()
+  it('matches non-null values', () => expect(p.match(0)).toBe(0))
+  it('returns undefined for null', () => expect(p.match(null)).toBeUndefined())
+  it('injects', () => expect(p.inject(5)).toBe(5))
+})
+
+describe('tagged', () => {
+  type Shape = { kind: 'circle'; r: number } | { kind: 'rect'; w: number; h: number }
+  const circle = tagged<Shape>('kind', 'circle')
+  const rect   = tagged<Shape>('kind', 'rect')
+
+  it('matches the correct variant', () => {
+    expect(circle.match({ kind: 'circle', r: 3 })).toEqual({ kind: 'circle', r: 3 })
+  })
+  it('returns undefined for non-matching variant', () => {
+    expect(circle.match({ kind: 'rect', w: 1, h: 2 })).toBeUndefined()
+  })
+  it('injects preserving the full shape', () => {
+    expect(circle.inject({ kind: 'circle', r: 7 })).toEqual({ kind: 'circle', r: 7 })
+  })
+  it('match(inject(b)) = b', () => {
+    const b = { kind: 'circle' as const, r: 5 }
+    expect(circle.match(circle.inject(b))).toEqual(b)
+  })
+  it('handles the other variant independently', () => {
+    expect(rect.match({ kind: 'rect', w: 2, h: 4 })).toEqual({ kind: 'rect', w: 2, h: 4 })
+    expect(rect.match({ kind: 'circle', r: 1 })).toBeUndefined()
+  })
 })
