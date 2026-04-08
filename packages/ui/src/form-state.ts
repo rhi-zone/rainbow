@@ -27,8 +27,10 @@
  *   }
  */
 
-import { signal } from "@rhi-zone/rainbow"
+import { signal, composeLens, field } from "@rhi-zone/rainbow"
 import type { Signal } from "@rhi-zone/rainbow"
+import { focus } from "./widget.js"
+import type { Widget, AnyEl } from "./widget.js"
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -133,12 +135,31 @@ export function createForm<T extends object>(options: {
   readonly validate?: FormValidator<T>
 }): {
   readonly state: Signal<FormState<T>>
+  /**
+   * Bind a widget to a specific values field. Shorthand for
+   * `focus(widget, composeLens(field("values"), field(key)))`.
+   * `T` is captured by closure so no explicit type parameters are needed.
+   *
+   * @example
+   * const { state, bind } = createForm({ defaults: { name: "", email: "" } })
+   * mount(stack(
+   *   bind("name",  inputWidget({ placeholder: "Name" })),
+   *   bind("email", inputWidget({ placeholder: "Email" })),
+   * ), state, root)
+   */
+  readonly bind: <K extends keyof T & string, E extends AnyEl>(key: K, widget: Widget<T[K], E>) => Widget<FormState<T>, E>
   readonly handleSubmit: (onValid: (values: T) => Promise<void>) => (e?: Event) => void
   readonly reset: () => void
   readonly setErrors: (fieldErrors?: FieldErrors<T>, formErrors?: string[]) => void
 } {
   const { defaults, validate } = options
   const state = signal(createFormState(defaults))
+
+  const bind = <K extends keyof T & string, E extends AnyEl>(
+    key: K,
+    widget: Widget<T[K], E>,
+  ): Widget<FormState<T>, E> =>
+    focus(widget, composeLens(field<FormState<T>, "values">("values"), field<T, K>(key)))
 
   const runValidator = (values: T): { fieldErrors: FieldErrors<T>; formErrors: string[] } => {
     if (!validate) return { fieldErrors: {}, formErrors: [] }
@@ -199,5 +220,5 @@ export function createForm<T extends object>(options: {
     })
   }
 
-  return { state, handleSubmit, reset, setErrors }
+  return { state, bind, handleSubmit, reset, setErrors }
 }

@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { signal, composeLens, field } from "@rhi-zone/rainbow"
-import { mount, stack, focus } from "./widget.js"
+import { mount, stack } from "./widget.js"
 import { inputWidget } from "./widget.js"
 import {
   createForm,
@@ -14,12 +13,6 @@ import {
 
 type Profile = { name: string; email: string }
 const defaults: Profile = { name: "", email: "" }
-
-// Lens from FormState<Profile> into a specific values field —
-// this is the "form field" pattern: just a composed lens.
-function valuesField<T, K extends keyof T & string>(key: K) {
-  return composeLens(field<FormState<T>, "values">("values"), field<T, K>(key))
-}
 
 function makeRoot() {
   const el = document.createElement("div")
@@ -91,12 +84,11 @@ describe("isDirty", () => {
 
 // ── lens-based form fields ────────────────────────────────────────────────────
 
-describe("form fields via lens", () => {
-  it("focus + composeLens connects input widget to values field", () => {
+describe("bind", () => {
+  it("connects input widget to values field", () => {
     const root = makeRoot()
-    const { state } = createForm({ defaults })
-    const nameInput = focus(inputWidget(), valuesField<Profile, "name">("name"))
-    const unmount = mount(nameInput, state, root)
+    const { state, bind } = createForm({ defaults })
+    const unmount = mount(bind("name", inputWidget()), state, root)
     const inp = root.querySelector("input")!
     inp.value = "Alice"
     inp.dispatchEvent(new Event("input"))
@@ -106,31 +98,30 @@ describe("form fields via lens", () => {
 
   it("signal update propagates back to input DOM node", () => {
     const root = makeRoot()
-    const { state } = createForm({ defaults })
-    const nameInput = focus(inputWidget(), valuesField<Profile, "name">("name"))
-    const unmount = mount(nameInput, state, root)
+    const { state, bind } = createForm({ defaults })
+    const unmount = mount(bind("name", inputWidget()), state, root)
     state.set({ ...state.get(), values: { name: "Bob", email: "" } })
     expect(root.querySelector("input")!.value).toBe("Bob")
     unmount(); root.remove()
   })
 
-  it("two focused widgets on the same state update independently", () => {
+  it("two bound widgets on the same state update independently", () => {
     const root = makeRoot()
-    const { state } = createForm({ defaults })
+    const { state, bind } = createForm({ defaults })
     const w = stack<FormState<Profile>>(
-      focus(inputWidget(), valuesField<Profile, "name">("name")),
-      focus(inputWidget(), valuesField<Profile, "email">("email")),
+      bind("name",  inputWidget()),
+      bind("email", inputWidget()),
     )
     const unmount = mount(w, state, root)
     const [nameInp, emailInp] = root.querySelectorAll("input")
     nameInp!.value = "Alice"
     nameInp!.dispatchEvent(new Event("input"))
     expect(state.get().values.name).toBe("Alice")
-    expect(state.get().values.email).toBe("")   // untouched
+    expect(state.get().values.email).toBe("")
     emailInp!.value = "a@b.com"
     emailInp!.dispatchEvent(new Event("input"))
     expect(state.get().values.email).toBe("a@b.com")
-    expect(state.get().values.name).toBe("Alice")  // still intact
+    expect(state.get().values.name).toBe("Alice")
     unmount(); root.remove()
   })
 })
