@@ -12,6 +12,10 @@
     "./html": {
       "import": "./dist/html.js",
       "types":  "./dist/html.d.ts"
+    },
+    "./widget": {
+      "import": "./dist/widget.js",
+      "types":  "./dist/widget.d.ts"
     }
   },
   "files": ["dist"],
@@ -21,8 +25,12 @@
     "typecheck": "tsgo --noEmit",
     "test":      "vitest run"
   },
+  "dependencies": {
+    "@rhi-zone/rainbow": "workspace:*"
+  },
   "devDependencies": {
-    "vite":   "^6.0.0",
-    "vitest": "^2.0.0"
+    "happy-dom": "^16.0.0",
+    "vite":      "^6.0.0",
+    "vitest":    "^2.0.0"
   }
 }
