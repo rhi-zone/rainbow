@@ -16,7 +16,7 @@
 // ── Nominal element wrapper ───────────────────────────────────────────────────
 
 /** Nominal wrapper pairing a tag literal type with the underlying DOM node. */
-export type El<Tag extends string, N extends HTMLElement | SVGSVGElement = HTMLElement> = {
+export type El<Tag extends string, N extends HTMLElement | SVGElement = HTMLElement> = {
   readonly _tag: Tag
   readonly node: N
 }
@@ -100,6 +100,29 @@ export type SourceEl     = El<"source",     HTMLSourceElement>
 export type CanvasEl     = El<"canvas",     HTMLCanvasElement>
 export type SvgEl        = El<"svg",        SVGSVGElement>
 
+// SVG child elements
+export type CircleEl         = El<"circle",         SVGCircleElement>
+export type EllipseEl        = El<"ellipse",        SVGEllipseElement>
+export type RectEl           = El<"rect",           SVGRectElement>
+export type LineEl           = El<"line",           SVGLineElement>
+export type PolylineEl       = El<"polyline",       SVGPolylineElement>
+export type PolygonEl        = El<"polygon",        SVGPolygonElement>
+export type PathEl           = El<"path",           SVGPathElement>
+export type TextEl           = El<"text",           SVGTextElement>
+export type TspanEl          = El<"tspan",          SVGTSpanElement>
+export type GEl              = El<"g",              SVGGElement>
+export type DefsEl           = El<"defs",           SVGDefsElement>
+export type SymbolEl         = El<"symbol",         SVGSymbolElement>
+export type UseEl            = El<"use",            SVGUseElement>
+export type ClipPathEl       = El<"clipPath",       SVGClipPathElement>
+export type MaskEl           = El<"mask",           SVGMaskElement>
+export type LinearGradientEl = El<"linearGradient", SVGLinearGradientElement>
+export type RadialGradientEl = El<"radialGradient", SVGRadialGradientElement>
+export type StopEl           = El<"stop",           SVGStopElement>
+export type PatternEl        = El<"pattern",        SVGPatternElement>
+export type SvgImageEl       = El<"image",          SVGImageElement>
+export type ForeignObjectEl  = El<"foreignObject",  SVGForeignObjectElement>
+
 // Metadata
 export type StyleEl      = El<"style",      HTMLStyleElement>
 export type ScriptEl     = El<"script",     HTMLScriptElement>
@@ -139,11 +162,20 @@ export type SelectContent       = OptionEl
 
 export type DefinitionListContent = DtEl | DdEl
 
+export type SvgContent =
+  | CircleEl | EllipseEl | RectEl | LineEl | PolylineEl | PolygonEl | PathEl
+  | TextEl | TspanEl
+  | GEl | DefsEl | SymbolEl | UseEl
+  | ClipPathEl | MaskEl
+  | LinearGradientEl | RadialGradientEl | StopEl
+  | PatternEl | SvgImageEl | ForeignObjectEl
+
 export type AnyEl =
   | FlowContent | HeadContent | RowContent | CellContent
   | ListItemContent | SelectContent | SourceEl
   | TableSectionContent | DefinitionListContent
   | HtmlEl | HeadEl | BodyEl
+  | SvgContent
 
 // ── Attribute types ───────────────────────────────────────────────────────────
 
@@ -178,19 +210,46 @@ export type OlAttrs       = GlobalAttrs & { start?: number }
 export type SvgAttrs      = { id?: string; class?: string; style?: string; width?: string; height?: string; viewBox?: string; xmlns?: string }
 export type IframeAttrs   = GlobalAttrs & { src?: string; width?: string; height?: string; name?: string }
 
+type SvgCoreAttrs = { id?: string; class?: string; style?: string }
+type SvgPresentationAttrs = { fill?: string; stroke?: string; "stroke-width"?: string | number; "stroke-linecap"?: string; "stroke-linejoin"?: string; "stroke-dasharray"?: string; "stroke-dashoffset"?: string | number; opacity?: string | number; "fill-opacity"?: string | number; "stroke-opacity"?: string | number; transform?: string; "clip-path"?: string; mask?: string; filter?: string }
+
+export type CircleAttrs         = SvgCoreAttrs & SvgPresentationAttrs & { cx?: string | number; cy?: string | number; r?: string | number }
+export type EllipseAttrs        = SvgCoreAttrs & SvgPresentationAttrs & { cx?: string | number; cy?: string | number; rx?: string | number; ry?: string | number }
+export type RectAttrs           = SvgCoreAttrs & SvgPresentationAttrs & { x?: string | number; y?: string | number; width?: string | number; height?: string | number; rx?: string | number; ry?: string | number }
+export type LineAttrs           = SvgCoreAttrs & SvgPresentationAttrs & { x1?: string | number; y1?: string | number; x2?: string | number; y2?: string | number }
+export type PolylineAttrs       = SvgCoreAttrs & SvgPresentationAttrs & { points?: string }
+export type PolygonAttrs        = SvgCoreAttrs & SvgPresentationAttrs & { points?: string }
+export type PathAttrs           = SvgCoreAttrs & SvgPresentationAttrs & { d?: string }
+export type TextAttrs           = SvgCoreAttrs & SvgPresentationAttrs & { x?: string | number; y?: string | number; dx?: string | number; dy?: string | number; "text-anchor"?: string; "font-size"?: string | number; "font-family"?: string; "font-weight"?: string }
+export type TspanAttrs          = SvgCoreAttrs & SvgPresentationAttrs & { x?: string | number; y?: string | number; dx?: string | number; dy?: string | number }
+export type GAttrs              = SvgCoreAttrs & SvgPresentationAttrs
+export type DefsAttrs           = SvgCoreAttrs
+export type SymbolAttrs         = SvgCoreAttrs & { viewBox?: string; width?: string | number; height?: string | number }
+export type UseAttrs            = SvgCoreAttrs & SvgPresentationAttrs & { href?: string; x?: string | number; y?: string | number; width?: string | number; height?: string | number }
+export type ClipPathAttrs       = SvgCoreAttrs & { clipPathUnits?: string }
+export type MaskAttrs           = SvgCoreAttrs & { x?: string | number; y?: string | number; width?: string | number; height?: string | number; maskUnits?: string; maskContentUnits?: string }
+export type LinearGradientAttrs = SvgCoreAttrs & { x1?: string | number; y1?: string | number; x2?: string | number; y2?: string | number; gradientUnits?: string; gradientTransform?: string; spreadMethod?: string; href?: string }
+export type RadialGradientAttrs = SvgCoreAttrs & { cx?: string | number; cy?: string | number; r?: string | number; fx?: string | number; fy?: string | number; gradientUnits?: string; gradientTransform?: string; spreadMethod?: string; href?: string }
+export type StopAttrs           = SvgCoreAttrs & { offset?: string | number; "stop-color"?: string; "stop-opacity"?: string | number }
+export type PatternAttrs        = SvgCoreAttrs & { x?: string | number; y?: string | number; width?: string | number; height?: string | number; patternUnits?: string; patternTransform?: string; viewBox?: string; href?: string }
+export type SvgImageAttrs       = SvgCoreAttrs & SvgPresentationAttrs & { href?: string; x?: string | number; y?: string | number; width?: string | number; height?: string | number; preserveAspectRatio?: string }
+export type ForeignObjectAttrs  = SvgCoreAttrs & { x?: string | number; y?: string | number; width?: string | number; height?: string | number }
+
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 type RawAttrs = Record<string, unknown>
 type Child = AnyEl | string
 
-function applyAttrs(node: HTMLElement | SVGSVGElement, attrs: RawAttrs): void {
+const SVG_NS = "http://www.w3.org/2000/svg"
+
+function applyAttrs(node: HTMLElement | SVGElement, attrs: RawAttrs): void {
   for (const [k, v] of Object.entries(attrs)) {
     if (v === undefined || v === null || v === false) continue
     node.setAttribute(k, v === true ? "" : String(v))
   }
 }
 
-function appendChildren(node: HTMLElement | SVGSVGElement, children: Child[]): void {
+function appendChildren(node: HTMLElement | SVGElement, children: Child[]): void {
   for (const child of children) {
     node.appendChild(typeof child === "string" ? document.createTextNode(child) : child.node)
   }
@@ -210,6 +269,25 @@ function _el<Tag extends string, N extends HTMLElement>(tag: Tag) {
 function _void<Tag extends string, N extends HTMLElement>(tag: Tag) {
   return (attrs: RawAttrs): El<Tag, N> => {
     const node = document.createElement(tag) as unknown as N
+    applyAttrs(node, attrs)
+    return { _tag: tag, node }
+  }
+}
+
+/** Factory for SVG child elements. */
+function _svgEl<Tag extends string, N extends SVGElement>(tag: Tag) {
+  return (attrs: RawAttrs, ...children: Child[]): El<Tag, N> => {
+    const node = document.createElementNS(SVG_NS, tag) as unknown as N
+    applyAttrs(node, attrs)
+    appendChildren(node, children)
+    return { _tag: tag, node }
+  }
+}
+
+/** Factory for void SVG child elements (no children). */
+function _svgVoid<Tag extends string, N extends SVGElement>(tag: Tag) {
+  return (attrs: RawAttrs): El<Tag, N> => {
+    const node = document.createElementNS(SVG_NS, tag) as unknown as N
     applyAttrs(node, attrs)
     return { _tag: tag, node }
   }
@@ -442,12 +520,77 @@ export const source = (attrs: SourceAttrs): SourceEl =>
 export const canvas = (attrs: GlobalAttrs & { width?: string; height?: string }): CanvasEl =>
   _void<"canvas", HTMLCanvasElement>("canvas")(attrs as RawAttrs)
 
-export const svg    = (attrs: SvgAttrs, ...children: string[]): SvgEl => {
-  const node = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+export const svg = (attrs: SvgAttrs, ...children: (SvgContent | string)[]): SvgEl => {
+  const node = document.createElementNS(SVG_NS, "svg")
   applyAttrs(node, attrs as RawAttrs)
-  for (const child of children) node.innerHTML += child
+  appendChildren(node, children)
   return { _tag: "svg", node }
 }
+
+// ── SVG child elements ────────────────────────────────────────────────────────
+
+export const circle         = (attrs: CircleAttrs): CircleEl =>
+  _svgVoid<"circle", SVGCircleElement>("circle")(attrs as RawAttrs)
+
+export const ellipse        = (attrs: EllipseAttrs): EllipseEl =>
+  _svgVoid<"ellipse", SVGEllipseElement>("ellipse")(attrs as RawAttrs)
+
+export const rect           = (attrs: RectAttrs): RectEl =>
+  _svgVoid<"rect", SVGRectElement>("rect")(attrs as RawAttrs)
+
+export const line           = (attrs: LineAttrs): LineEl =>
+  _svgVoid<"line", SVGLineElement>("line")(attrs as RawAttrs)
+
+export const polyline       = (attrs: PolylineAttrs): PolylineEl =>
+  _svgVoid<"polyline", SVGPolylineElement>("polyline")(attrs as RawAttrs)
+
+export const polygon        = (attrs: PolygonAttrs): PolygonEl =>
+  _svgVoid<"polygon", SVGPolygonElement>("polygon")(attrs as RawAttrs)
+
+export const path           = (attrs: PathAttrs): PathEl =>
+  _svgVoid<"path", SVGPathElement>("path")(attrs as RawAttrs)
+
+export const text           = (attrs: TextAttrs, ...children: (TspanEl | string)[]): TextEl =>
+  _svgEl<"text", SVGTextElement>("text")(attrs as RawAttrs, ...children)
+
+export const tspan          = (attrs: TspanAttrs, ...children: (TspanEl | string)[]): TspanEl =>
+  _svgEl<"tspan", SVGTSpanElement>("tspan")(attrs as RawAttrs, ...children)
+
+export const g              = (attrs: GAttrs, ...children: (SvgContent | string)[]): GEl =>
+  _svgEl<"g", SVGGElement>("g")(attrs as RawAttrs, ...children)
+
+export const defs           = (attrs: DefsAttrs, ...children: SvgContent[]): DefsEl =>
+  _svgEl<"defs", SVGDefsElement>("defs")(attrs as RawAttrs, ...children)
+
+export const symbol         = (attrs: SymbolAttrs, ...children: SvgContent[]): SymbolEl =>
+  _svgEl<"symbol", SVGSymbolElement>("symbol")(attrs as RawAttrs, ...children)
+
+export const use            = (attrs: UseAttrs): UseEl =>
+  _svgVoid<"use", SVGUseElement>("use")(attrs as RawAttrs)
+
+export const clipPath       = (attrs: ClipPathAttrs, ...children: SvgContent[]): ClipPathEl =>
+  _svgEl<"clipPath", SVGClipPathElement>("clipPath")(attrs as RawAttrs, ...children)
+
+export const mask           = (attrs: MaskAttrs, ...children: SvgContent[]): MaskEl =>
+  _svgEl<"mask", SVGMaskElement>("mask")(attrs as RawAttrs, ...children)
+
+export const linearGradient = (attrs: LinearGradientAttrs, ...children: StopEl[]): LinearGradientEl =>
+  _svgEl<"linearGradient", SVGLinearGradientElement>("linearGradient")(attrs as RawAttrs, ...children)
+
+export const radialGradient = (attrs: RadialGradientAttrs, ...children: StopEl[]): RadialGradientEl =>
+  _svgEl<"radialGradient", SVGRadialGradientElement>("radialGradient")(attrs as RawAttrs, ...children)
+
+export const stop           = (attrs: StopAttrs): StopEl =>
+  _svgVoid<"stop", SVGStopElement>("stop")(attrs as RawAttrs)
+
+export const pattern        = (attrs: PatternAttrs, ...children: SvgContent[]): PatternEl =>
+  _svgEl<"pattern", SVGPatternElement>("pattern")(attrs as RawAttrs, ...children)
+
+export const svgImage       = (attrs: SvgImageAttrs): SvgImageEl =>
+  _svgVoid<"image", SVGImageElement>("image")(attrs as RawAttrs)
+
+export const foreignObject  = (attrs: ForeignObjectAttrs, ...children: (FlowContent | string)[]): ForeignObjectEl =>
+  _svgEl<"foreignObject", SVGForeignObjectElement>("foreignObject")(attrs as RawAttrs, ...children)
 
 // ── Text utility ──────────────────────────────────────────────────────────────
 
