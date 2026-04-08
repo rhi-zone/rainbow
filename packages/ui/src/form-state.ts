@@ -27,9 +27,8 @@
  *   }
  */
 
-import { signal, composeLens, field } from "@rhi-zone/rainbow"
+import { signal, field } from "@rhi-zone/rainbow"
 import type { Signal } from "@rhi-zone/rainbow"
-import { focus } from "./widget.js"
 import type { Widget, AnyEl } from "./widget.js"
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -159,7 +158,7 @@ export function createForm<T extends object>(options: {
     key: K,
     widget: Widget<T[K], E>,
   ): Widget<FormState<T>, E> =>
-    focus(widget, composeLens(field<FormState<T>, "values">("values"), field<T, K>(key)))
+    (s) => widget(s.focus(field<FormState<T>, "values">("values")).focus(field<T, K>(key)))
 
   const runValidator = (values: T): { fieldErrors: FieldErrors<T>; formErrors: string[] } => {
     if (!validate) return { fieldErrors: {}, formErrors: [] }
