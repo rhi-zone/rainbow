@@ -21,6 +21,7 @@ import {
   show,
   concat,
   eachKeyed,
+  templ,
   subscribe,
 } from "./widget.js"
 import * as h from "./html.js"
@@ -569,5 +570,104 @@ describe("eachKeyed", () => {
     s.set([{ id: 1, label: "from-parent" }])
     expect(listSets).toBe(initialSets + 1)  // only one set, no cycle
     cleanup(root, unmount)
+  })
+})
+
+// ── templ ─────────────────────────────────────────────────────────────────────
+
+type Item = { label: string; value: number }
+
+describe("templ", () => {
+  it("renders template with refs on initial mount", () => {
+    const root = makeRoot()
+    const s = signal<Item>({ label: "score", value: 42 })
+    const w = templ(
+      `<div class="card"><span data-ref="name"></span><b data-ref="score"></b></div>`,
+      { name: "span", score: "b" } as const,
+      (sig, { name, score }) => {
+        name.node.textContent = sig.get().label
+        score.node.textContent = String(sig.get().value)
+      },
+    )
+    const unmount = mount(w, s, root)
+    expect(root.querySelector("span")?.textContent).toBe("score")
+    expect(root.querySelector("b")?.textContent).toBe("42")
+    cleanup(root, unmount)
+  })
+
+  it("updates refs via subscription", () => {
+    const root = makeRoot()
+    const s = signal<Item>({ label: "score", value: 42 })
+    const w = templ(
+      `<div class="card"><span data-ref="name"></span><b data-ref="score"></b></div>`,
+      { name: "span", score: "b" } as const,
+      (sig, { name, score }) => {
+        name.node.textContent = sig.get().label
+        score.node.textContent = String(sig.get().value)
+        subscribe(sig, (v) => {
+          name.node.textContent = v.label
+          score.node.textContent = String(v.value)
+        })
+      },
+    )
+    const unmount = mount(w, s, root)
+    s.set({ label: "pts", value: 99 })
+    expect(root.querySelector("span")?.textContent).toBe("pts")
+    expect(root.querySelector("b")?.textContent).toBe("99")
+    cleanup(root, unmount)
+  })
+
+  it("each instantiation gets its own cloned DOM (independent nodes)", () => {
+    const root = makeRoot()
+    const s1 = signal<Item>({ label: "a", value: 1 })
+    const s2 = signal<Item>({ label: "b", value: 2 })
+    const makeW = () => templ(
+      `<div><span data-ref="lbl"></span></div>`,
+      { lbl: "span" } as const,
+      (sig, { lbl }) => {
+        lbl.node.textContent = sig.get().label
+        subscribe(sig, (v) => { lbl.node.textContent = v.label })
+      },
+    )
+    const w = makeW()
+    const unmount1 = mount(w, s1, root)
+    const container2 = document.createElement("div")
+    document.body.appendChild(container2)
+    const unmount2 = mount(w, s2, container2)
+    // Each mount gets its own clone — signal updates don't cross
+    s1.set({ label: "x", value: 1 })
+    expect(root.querySelector("span")?.textContent).toBe("x")
+    expect(container2.querySelector("span")?.textContent).toBe("b")
+    cleanup(root, unmount1)
+    cleanup(container2, unmount2)
+  })
+
+  it("subscriptions from bind are cleaned up on unmount", () => {
+    const root = makeRoot()
+    const s = signal<Item>({ label: "a", value: 1 })
+    let calls = 0
+    const w = templ(
+      `<div><span data-ref="lbl"></span></div>`,
+      { lbl: "span" } as const,
+      (sig, { lbl }) => {
+        lbl.node.textContent = sig.get().label
+        subscribe(sig, (v) => { calls++; lbl.node.textContent = v.label })
+      },
+    )
+    const unmount = mount(w, s, root)
+    const callsBefore = calls
+    unmount()
+    s.set({ label: "b", value: 2 })
+    expect(calls).toBe(callsBefore)  // no more calls after unmount
+  })
+
+  it("throws a descriptive error when a declared ref is absent from the template", () => {
+    const s = signal<Item>({ label: "a", value: 1 })
+    const w = templ(
+      `<div><span data-ref="other"></span></div>`,
+      { missing: "span" } as const,
+      () => {},
+    )
+    expect(() => w(s as unknown as Parameters<typeof w>[0])).toThrow(/ref "missing" not found/)
   })
 })

@@ -42,7 +42,7 @@ import {
   snd,
   stateful,
 } from "@rhi-zone/rainbow"
-import type { AnyEl, FlowContent, DivEl } from "./html.js"
+import type { AnyEl, El, FlowContent, DivEl } from "./html.js"
 
 // ── Widget type ───────────────────────────────────────────────────────────────
 
@@ -403,6 +403,76 @@ export function concat<A>(
     node.appendChild(cb.node)
     _register(cleanupA)
     _register(cleanupB)
+    return { _tag: "div", node }
+  }
+}
+
+// ── Template combinator ───────────────────────────────────────────────────────
+
+/**
+ * Maps a `refs` dict `{ refName: tagName }` to a typed El map:
+ *   `{ refName: El<tagName, HTMLElementTagNameMap[tagName]> }`
+ */
+export type RefsMap<R extends Record<string, keyof HTMLElementTagNameMap>> = {
+  readonly [K in keyof R]: El<R[K] & string, HTMLElementTagNameMap[R[K]]>
+}
+
+/**
+ * Template combinator. Parses `innerHTML` once (at definition time), then for
+ * each widget instantiation clones the template, queries out typed DOM refs via
+ * `data-ref` attributes, and calls `bind` with the signal and those refs.
+ *
+ * Refs are queried as `tagName[data-ref="refName"]`, so `{ name: "span" }`
+ * expects `<span data-ref="name">` in the template. Using `data-ref` rather
+ * than `id` means the same template can be cloned many times (e.g. inside
+ * `eachKeyed`) without duplicate-ID issues.
+ *
+ * `bind` is called inside the widget call context, so any `subscribe` calls
+ * inside it are tracked and cleaned up by `mount` / parent combinators.
+ *
+ * @throws if a declared ref is absent from the cloned template.
+ *
+ * @example
+ * const cardWidget = templ(
+ *   `<div class="card"><span data-ref="name"></span><b data-ref="score"></b></div>`,
+ *   { name: "span", score: "b" } as const,
+ *   (s, { name, score }) => {
+ *     name.node.textContent = s.get().label
+ *     score.node.textContent = String(s.get().value)
+ *     subscribe(s, v => {
+ *       name.node.textContent = v.label
+ *       score.node.textContent = String(v.value)
+ *     })
+ *   }
+ * )
+ */
+export function templ<const R extends Record<string, keyof HTMLElementTagNameMap>, T>(
+  innerHTML: string,
+  refs: R,
+  bind: (signal: Signal<T>, refs: RefsMap<R>) => void,
+): Widget<T, DivEl> {
+  const template = document.createElement("template")
+  template.innerHTML = innerHTML
+
+  return (s) => {
+    const node = document.createElement("div")
+    node.dataset["templ"] = ""
+    node.appendChild(template.content.cloneNode(true))
+
+    const queriedRefs = {} as Record<string, unknown>
+    for (const refName of Object.keys(refs)) {
+      const tagName = refs[refName]!
+      const el = node.querySelector(`${tagName}[data-ref="${refName}"]`)
+      if (el === null) {
+        throw new Error(
+          `templ: ref "${refName}" not found — expected <${tagName} data-ref="${refName}"> in template`,
+        )
+      }
+      queriedRefs[refName] = { _tag: tagName, node: el }
+    }
+
+    bind(s, queriedRefs as RefsMap<R>)
+
     return { _tag: "div", node }
   }
 }
