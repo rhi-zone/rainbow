@@ -158,7 +158,7 @@ export function createForm<T extends object>(options: {
     key: K,
     widget: Widget<T[K], E>,
   ): Widget<FormState<T>, E> =>
-    (s) => widget(s.focus(field<FormState<T>, "values">("values")).focus(field<T, K>(key)))
+    (s) => widget(s.focus(field("values")).focus(field(key)))
 
   const runValidator = (values: T): { fieldErrors: FieldErrors<T>; formErrors: string[] } => {
     if (!validate) return { fieldErrors: {}, formErrors: [] }
