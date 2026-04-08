@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { signal } from '@rhi-zone/rainbow'
 import { stateful } from '@rhi-zone/rainbow'
-import { fst, snd } from '@rhi-zone/rainbow'
+import { index } from '@rhi-zone/rainbow'
 import { computed } from '@rhi-zone/rainbow'
 import type { Todo, Filter } from './state.ts'
 
@@ -13,8 +13,8 @@ function makeStore() {
   const todos = signal<Todo[]>([])
   const filter = signal<Filter>('all')
   const addForm = stateful('', todos)
-  const draft = addForm.focus(fst<string, Todo[]>())
-  const addFormTodos = addForm.focus(snd<string, Todo[]>())
+  const draft = addForm.focus(index(0))
+  const addFormTodos = addForm.focus(index(1))
 
   let nextId = 1
 

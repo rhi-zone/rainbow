@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { signal } from './signal.ts'
 import { product, stateful } from './product.ts'
-import { fst, snd, lens } from './lens.ts'
+import { index, lens } from './lens.ts'
 import { prism, some } from './prism.ts'
 
 describe('product', () => {
@@ -39,12 +39,12 @@ describe('product', () => {
   })
 })
 
-describe('product.focus via fst/snd', () => {
+describe('product.focus via index', () => {
   it('focuses on first element', () => {
     const a = signal(1)
     const b = signal('hello')
     const p = product(a, b)
-    const first = p.focus(fst<number, string>())
+    const first = p.focus(index(0))
     expect(first.get()).toBe(1)
   })
 
@@ -52,7 +52,7 @@ describe('product.focus via fst/snd', () => {
     const a = signal(1)
     const b = signal('hello')
     const p = product(a, b)
-    p.focus(fst<number, string>()).set(99)
+    p.focus(index(0)).set(99)
     expect(a.get()).toBe(99)
     expect(b.get()).toBe('hello')
   })
@@ -60,34 +60,34 @@ describe('product.focus via fst/snd', () => {
   it('focuses on second element', () => {
     const a = signal(1)
     const b = signal('hello')
-    expect(product(a, b).focus(snd<number, string>()).get()).toBe('hello')
+    expect(product(a, b).focus(index(1)).get()).toBe('hello')
   })
 
   it('sets second element without touching first', () => {
     const a = signal(1)
     const b = signal('hello')
     const p = product(a, b)
-    p.focus(snd<number, string>()).set('world')
+    p.focus(index(1)).set('world')
     expect(a.get()).toBe(1)
     expect(b.get()).toBe('world')
   })
 
-  it('notifies fst focus only when first changes', () => {
+  it('notifies index(0) focus only when first changes', () => {
     const a = signal(1)
     const b = signal('x')
     const fn = vi.fn()
-    product(a, b).focus(fst<number, string>()).subscribe(fn)
+    product(a, b).focus(index(0)).subscribe(fn)
     b.set('y')   // should not trigger
     a.set(2)     // should trigger
     expect(fn).toHaveBeenCalledTimes(1)
     expect(fn).toHaveBeenCalledWith(2)
   })
 
-  it('notifies snd focus only when second changes', () => {
+  it('notifies index(1) focus only when second changes', () => {
     const a = signal(1)
     const b = signal('x')
     const fn = vi.fn()
-    product(a, b).focus(snd<number, string>()).subscribe(fn)
+    product(a, b).focus(index(1)).subscribe(fn)
     a.set(2)     // should not trigger
     b.set('y')   // should trigger
     expect(fn).toHaveBeenCalledTimes(1)
@@ -184,30 +184,30 @@ describe('stateful', () => {
   it('starts with init as local state', () => {
     const items = signal<Item[]>([])
     const combined = stateful('', items)
-    const draft = combined.focus(fst<string, Item[]>())
+    const draft = combined.focus(index(0))
     expect(draft.get()).toBe('')
   })
 
-  it('external signal is accessible via snd', () => {
+  it('external signal is accessible via index(1)', () => {
     const items = signal<Item[]>([{ text: 'buy milk', done: false }])
     const combined = stateful('', items)
-    const list = combined.focus(snd<string, Item[]>())
+    const list = combined.focus(index(1))
     expect(list.get()).toEqual([{ text: 'buy milk', done: false }])
   })
 
   it('local state changes do not affect external signal', () => {
     const items = signal<Item[]>([])
     const combined = stateful('', items)
-    const draft = combined.focus(fst<string, Item[]>())
+    const draft = combined.focus(index(0))
     draft.set('buy milk')
     expect(items.get()).toEqual([])
     expect(draft.get()).toBe('buy milk')
   })
 
-  it('external signal changes propagate to snd', () => {
+  it('external signal changes propagate to index(1)', () => {
     const items = signal<Item[]>([])
     const combined = stateful('', items)
-    const list = combined.focus(snd<string, Item[]>())
+    const list = combined.focus(index(1))
     items.set([{ text: 'buy milk', done: false }])
     expect(list.get()).toEqual([{ text: 'buy milk', done: false }])
   })
@@ -215,8 +215,8 @@ describe('stateful', () => {
   it('simulates add-todo pattern', () => {
     const items = signal<Item[]>([])
     const combined = stateful('', items)
-    const draft = combined.focus(fst<string, Item[]>())
-    const list = combined.focus(snd<string, Item[]>())
+    const draft = combined.focus(index(0))
+    const list = combined.focus(index(1))
 
     // type into draft
     draft.set('buy milk')
@@ -236,8 +236,8 @@ describe('stateful', () => {
     const items = signal<Item[]>([])
     const a = stateful('draft A', items)
     const b = stateful('draft B', items)
-    const draftA = a.focus(fst<string, Item[]>())
-    const draftB = b.focus(fst<string, Item[]>())
+    const draftA = a.focus(index(0))
+    const draftB = b.focus(index(0))
     draftA.set('changed A')
     expect(draftA.get()).toBe('changed A')
     expect(draftB.get()).toBe('draft B')

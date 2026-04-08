@@ -6,7 +6,7 @@
  */
 import { signal, computed } from '@rhi-zone/rainbow'
 import { stateful } from '../../../src/product.ts'
-import { fst, snd, field } from '../../../src/lens.ts'
+import { index, field } from '../../../src/lens.ts'
 import { each, filtered } from '../../../src/traversal.ts'
 
 export type Filter = 'all' | 'active' | 'completed'
@@ -29,8 +29,8 @@ export const filter = signal<Filter>('all')
 
 /** draft text + todo list, with draft encapsulated */
 const addForm = stateful('', todos)
-export const draft = addForm.focus(fst<string, Todo[]>())
-export const addFormTodos = addForm.focus(snd<string, Todo[]>())
+export const draft = addForm.focus(index(0))
+export const addFormTodos = addForm.focus(index(1))
 
 // ── Derived state (no effects needed) ───────────────────────────────────────
 

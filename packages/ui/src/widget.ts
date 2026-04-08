@@ -38,8 +38,7 @@ import {
   type Prism,
   signal as _signal,
   lens,
-  fst,
-  snd,
+  index,
   stateful,
 } from "@rhi-zone/rainbow"
 import {
@@ -273,8 +272,8 @@ export function beside<A, B>(
   return (s) => {
     const node = document.createElement("div")
     node.dataset["beside"] = ""
-    const sa = s.focus(fst<A, B>())
-    const sb = s.focus(snd<A, B>())
+    const sa = s.focus(index(0))
+    const sb = s.focus(index(1))
     const [ca, cleanupA] = _track(() => wa(sa))
     const [cb, cleanupB] = _track(() => wb(sb))
     node.appendChild(ca.node)
@@ -298,8 +297,8 @@ export function above<A, B>(
   return (s) => {
     const node = document.createElement("div")
     node.dataset["above"] = ""
-    const sa = s.focus(fst<A, B>())
-    const sb = s.focus(snd<A, B>())
+    const sa = s.focus(index(0))
+    const sb = s.focus(index(1))
     const [ca, cleanupA] = _track(() => wa(sa))
     const [cb, cleanupB] = _track(() => wb(sb))
     node.appendChild(ca.node)

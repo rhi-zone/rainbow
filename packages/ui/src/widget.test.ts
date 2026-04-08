@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest"
-import { signal, lens, prism, iso, fst, snd, field, product } from "@rhi-zone/rainbow"
+import { signal, lens, prism, iso, index, field, product } from "@rhi-zone/rainbow"
 import type { Signal } from "@rhi-zone/rainbow"
 import type { Widget } from "./widget.js"
 import {
@@ -272,7 +272,7 @@ describe("beside", () => {
     const root = makeRoot()
     const s = signal<[string, string]>(["a", "b"])
     const unmount = mount(beside(textWidget, textWidget), s, root)
-    s.focus(fst<string, string>()).set("X")
+    s.focus(index<[string, string]>(0)).set("X")
     const spans = root.querySelectorAll("span")
     expect(spans[0]?.textContent).toBe("X")
     expect(spans[1]?.textContent).toBe("b")
@@ -325,8 +325,8 @@ describe("dynamic", () => {
     }
     const w = dynamic(false, combined)
     const unmount = mount(w, outer, root)
-    // Flip local state via the stateful signal's fst lens
-    // (In real use, the widget does this internally via signal.focus(fst()))
+    // Flip local state via the stateful signal's index(0) lens
+    // (In real use, the widget does this internally via signal.focus(index(0)))
     expect(outerSets).toBe(0)
     cleanup(root, unmount)
   })

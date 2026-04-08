@@ -31,13 +31,13 @@ export function composeLens<A, B, C>(ab: Lens<A, B>, bc: Lens<B, C>): Lens<A, C>
   }
 }
 
-/** Lens into the first element of a tuple */
-export const fst = <A, B>(): Lens<[A, B], A> =>
-  lens(([a]) => a, ([, b], a) => [a, b])
-
-/** Lens into the second element of a tuple */
-export const snd = <A, B>(): Lens<[A, B], B> =>
-  lens(([, b]) => b, ([a], b) => [a, b])
+/** Lens into a tuple element by index. `index(0)` replaces `fst`, `index(1)` replaces `snd`. */
+export function index<T extends readonly unknown[], N extends number & keyof T>(n: N): Lens<T, T[N]> {
+  return lens(
+    (t) => t[n],
+    (t, v) => { const copy = [...t] as unknown[]; copy[n] = v; return copy as unknown as T },
+  )
+}
 
 /**
  * Lens into a record field by key.

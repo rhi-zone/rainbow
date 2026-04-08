@@ -11,7 +11,7 @@ type Subscriber<T> = (value: T) => void
  * Reads from both; writes decompose and route to each child.
  *
  * Note: calling set([a, b]) fires subscribers twice (once per child signal).
- * In practice, prefer focus(fst()) and focus(snd()) over direct set().
+ * In practice, prefer focus(index(0)) and focus(index(1)) over direct set().
  */
 class ProductSignal<A, B> implements Signal<[A, B]> {
   constructor(private _a: Signal<A>, private _b: Signal<B>) {}
@@ -71,15 +71,15 @@ export function product<A, B>(a: Signal<A>, b: Signal<B>): Signal<[A, B]> {
  * Attach a local state `S` to an external signal `A`, returning `Signal<[S, A]>`.
  *
  * The `S` state starts as `init` and lives locally — not observable
- * from outside except via `.focus(fst())` / `.focus(snd())`.
+ * from outside except via `.focus(index(0))` / `.focus(index(1))`.
  *
  * @param init - Initial value for the local state.
  * @param outer - The external signal to pair with.
  *
  * @example
- *   const combined = stateful("", itemsSignal)  // Signal<[string, Item[]]>
- *   const draft = combined.focus(fst())          // Signal<string>  — local
- *   const items = combined.focus(snd())          // Signal<Item[]>  — external
+ *   const combined = stateful("", itemsSignal)    // Signal<[string, Item[]]>
+ *   const draft = combined.focus(index(0))        // Signal<string>  — local
+ *   const items = combined.focus(index(1))        // Signal<Item[]>  — external
  */
 export function stateful<S, A>(init: S, outer: Signal<A>): Signal<[S, A]> {
   return product(signal(init), outer)

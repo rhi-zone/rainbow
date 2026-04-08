@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { lens, composeLens, field, fst, snd, id } from './lens.ts'
+import { lens, composeLens, field, index, id } from './lens.ts'
 
 describe('lens laws', () => {
   const nameLens = field<{ name: string; age: number }, 'name'>('name')
@@ -42,11 +42,11 @@ describe('composeLens', () => {
   })
 })
 
-describe('fst / snd', () => {
-  it('fst gets first', () => expect(fst<number, string>().get([1, 'a'])).toBe(1))
-  it('fst sets first', () => expect(fst<number, string>().set([1, 'a'], 2)).toEqual([2, 'a']))
-  it('snd gets second', () => expect(snd<number, string>().get([1, 'a'])).toBe('a'))
-  it('snd sets second', () => expect(snd<number, string>().set([1, 'a'], 'b')).toEqual([1, 'b']))
+describe('index', () => {
+  it('gets element at index 0', () => expect(index<[number, string]>(0).get([1, 'a'])).toBe(1))
+  it('sets element at index 0', () => expect(index<[number, string]>(0).set([1, 'a'], 2)).toEqual([2, 'a']))
+  it('gets element at index 1', () => expect(index<[number, string]>(1).get([1, 'a'])).toBe('a'))
+  it('sets element at index 1', () => expect(index<[number, string]>(1).set([1, 'a'], 'b')).toEqual([1, 'b']))
 })
 
 describe('id', () => {

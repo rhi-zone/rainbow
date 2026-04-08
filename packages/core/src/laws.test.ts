@@ -5,7 +5,7 @@
  */
 import { describe, it } from 'vitest'
 import * as fc from 'fast-check'
-import { lens, field, composeLens, fst, snd, id } from './lens.ts'
+import { lens, field, composeLens, index, id } from './lens.ts'
 import { prism, composePrism, some, iso } from './prism.ts'
 import { signal } from './signal.ts'
 import { cond } from './cond.ts'
@@ -65,17 +65,17 @@ describe('Lens laws', () => {
     ))
   })
 
-  // fst / snd laws
-  it('fst focuses on first element of a pair', () => {
+  // index laws
+  it('index(0) focuses on first element of a pair', () => {
     fc.assert(fc.property(fc.integer(), fc.string(), (a, b) => {
-      const l = fst<number, string>()
+      const l = index<[number, string]>(0)
       return l.get([a, b]) === a && JSON.stringify(l.set([a, b], 99)) === JSON.stringify([99, b])
     }))
   })
 
-  it('snd focuses on second element of a pair', () => {
+  it('index(1) focuses on second element of a pair', () => {
     fc.assert(fc.property(fc.integer(), fc.string(), (a, b) => {
-      const l = snd<number, string>()
+      const l = index<[number, string]>(1)
       return l.get([a, b]) === b && JSON.stringify(l.set([a, b], 'z')) === JSON.stringify([a, 'z'])
     }))
   })
