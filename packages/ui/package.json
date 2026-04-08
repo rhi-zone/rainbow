@@ -20,6 +20,10 @@
     "./elements": {
       "import": "./dist/elements.js",
       "types":  "./dist/elements.d.ts"
+    },
+    "./form-state": {
+      "import": "./dist/form-state.js",
+      "types":  "./dist/form-state.d.ts"
     }
   },
   "files": ["dist"],

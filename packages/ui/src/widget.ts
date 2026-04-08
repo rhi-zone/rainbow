@@ -431,6 +431,30 @@ export function concat<A>(
   }
 }
 
+// ── Stack combinator ──────────────────────────────────────────────────────────
+
+/**
+ * Render N widgets all receiving the same signal, stacked into one container.
+ * The same-signal variant of `above` — no product type required.
+ *
+ * Primary use case: form fields that all operate on `FormState<T>`.
+ *
+ * @example
+ * stack(formField("name", inputWidget()), formField("email", inputWidget()))
+ */
+export function stack<A>(...widgets: Widget<A, FlowContent>[]): Widget<A, DivEl> {
+  return (s) => {
+    const node = document.createElement("div")
+    node.dataset["stack"] = ""
+    for (const w of widgets) {
+      const [el, cleanup] = _track(() => w(s))
+      node.appendChild(el.node)
+      _register(cleanup)
+    }
+    return { _tag: "div", node }
+  }
+}
+
 // ── Template combinator ───────────────────────────────────────────────────────
 
 /**
