@@ -54,3 +54,48 @@ export function field<A, K extends keyof A>(key: K): Lens<A, A[K]> {
 export function id<A>(): Lens<A, A> {
   return lens((a) => a, (_, a) => a)
 }
+
+/**
+ * Lift a `Lens<S, A>` to `Lens<S[], A[]>`, applying it pointwise over an array.
+ *
+ * Laws hold as long as the `A[]` written back has the same length as the `S[]`
+ * it came from — which is guaranteed when the only source of `A[]` values is
+ * `get` on the same array.
+ *
+ * Useful for two-way bindings over arrays of objects:
+ *   signal<User[]>.focus(arrayOf(field("name")))  // Signal<string[]>
+ */
+export function arrayOf<S, A>(l: Lens<S, A>): Lens<S[], A[]> {
+  return lens(
+    (ss) => ss.map(s => l.get(s)),
+    (ss, as) => ss.map((s, i) => l.set(s, as[i]!)),
+  )
+}
+
+/**
+ * Lift a `Lens<S, A>` to `Lens<Record<K, S>, Record<K, A>>`, applying it to
+ * every value in the record.
+ *
+ * Useful for normalized state keyed by branded IDs:
+ *   signal<Record<UserId, User>>.focus(recordOf(field("name")))  // Signal<Record<UserId, string>>
+ */
+export function recordOf<K extends string, S, A>(l: Lens<S, A>): Lens<Record<K, S>, Record<K, A>> {
+  return lens(
+    (rec) => Object.fromEntries(Object.entries(rec).map(([k, v]) => [k, l.get(v as S)])) as Record<K, A>,
+    (rec, out) => Object.fromEntries(Object.entries(rec).map(([k, v]) => [k, l.set(v as S, (out as Record<string, A>)[k]!)])) as Record<K, S>,
+  )
+}
+
+/**
+ * Lift a `Lens<S, A>` to `Lens<Map<K, S>, Map<K, A>>`, applying it to every
+ * value in the map.
+ *
+ * Prefer this over `recordOf` when keys are arbitrary strings — `Map` avoids
+ * prototype-pollution footguns with special keys like `__proto__`.
+ */
+export function mapOf<K, S, A>(l: Lens<S, A>): Lens<Map<K, S>, Map<K, A>> {
+  return lens(
+    (m) => new Map([...m].map(([k, v]) => [k, l.get(v)])),
+    (m, out) => new Map([...m].map(([k, v]) => [k, l.set(v, out.get(k)!)])),
+  )
+}

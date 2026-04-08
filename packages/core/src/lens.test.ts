@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { lens, composeLens, field, index, id } from './lens.ts'
+import { lens, composeLens, field, index, id, arrayOf, recordOf, mapOf } from './lens.ts'
 
 describe('lens laws', () => {
   const nameLens = field<{ name: string; age: number }, 'name'>('name')
@@ -52,4 +52,48 @@ describe('index', () => {
 describe('id', () => {
   it('get returns value', () => expect(id<number>().get(5)).toBe(5))
   it('set returns new value', () => expect(id<number>().set(5, 10)).toBe(10))
+})
+
+type User = { name: string; age: number }
+const nameLens = field<User, 'name'>('name')
+
+describe('arrayOf', () => {
+  const users: User[] = [{ name: 'Alice', age: 30 }, { name: 'Bob', age: 25 }]
+  const l = arrayOf(nameLens)
+
+  it('gets all values', () => expect(l.get(users)).toEqual(['Alice', 'Bob']))
+  it('sets all values', () => expect(l.set(users, ['Carol', 'Dave'])).toEqual([
+    { name: 'Carol', age: 30 },
+    { name: 'Dave', age: 25 },
+  ]))
+  it('get(set(a, b)) = b', () => expect(l.get(l.set(users, ['X', 'Y']))).toEqual(['X', 'Y']))
+  it('set(a, get(a)) = a', () => expect(l.set(users, l.get(users))).toEqual(users))
+})
+
+describe('recordOf', () => {
+  const rec: Record<string, User> = { u1: { name: 'Alice', age: 30 }, u2: { name: 'Bob', age: 25 } }
+  const l = recordOf(nameLens)
+
+  it('gets all values', () => expect(l.get(rec)).toEqual({ u1: 'Alice', u2: 'Bob' }))
+  it('sets all values', () => expect(l.set(rec, { u1: 'Carol', u2: 'Dave' })).toEqual({
+    u1: { name: 'Carol', age: 30 },
+    u2: { name: 'Dave', age: 25 },
+  }))
+  it('get(set(a, b)) = b', () => expect(l.get(l.set(rec, { u1: 'X', u2: 'Y' }))).toEqual({ u1: 'X', u2: 'Y' }))
+  it('set(a, get(a)) = a', () => expect(l.set(rec, l.get(rec))).toEqual(rec))
+})
+
+describe('mapOf', () => {
+  const m = new Map([['u1', { name: 'Alice', age: 30 }], ['u2', { name: 'Bob', age: 25 }]])
+  const l = mapOf(nameLens)
+
+  it('gets all values', () => expect(l.get(m)).toEqual(new Map([['u1', 'Alice'], ['u2', 'Bob']])))
+  it('sets all values', () => expect(l.set(m, new Map([['u1', 'Carol'], ['u2', 'Dave']]))).toEqual(
+    new Map([['u1', { name: 'Carol', age: 30 }], ['u2', { name: 'Dave', age: 25 }]])
+  ))
+  it('get(set(a, b)) = b', () => {
+    const b = new Map([['u1', 'X'], ['u2', 'Y']])
+    expect(l.get(l.set(m, b))).toEqual(b)
+  })
+  it('set(a, get(a)) = a', () => expect(l.set(m, l.get(m))).toEqual(m))
 })
