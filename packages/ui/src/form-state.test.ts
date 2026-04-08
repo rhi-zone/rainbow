@@ -1,38 +1,30 @@
 import { describe, it, expect } from "vitest"
-import { mount, stack } from "./widget.js"
+import { signal, composeLens, field } from "@rhi-zone/rainbow"
+import { mount, stack, focus } from "./widget.js"
+import { inputWidget } from "./widget.js"
 import {
   createForm,
   createFormState,
-  formField,
   isFormValid,
   isDirty,
   type FormState,
 } from "./form-state.js"
-import { inputWidget } from "./widget.js"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 type Profile = { name: string; email: string }
 const defaults: Profile = { name: "", email: "" }
 
+// Lens from FormState<Profile> into a specific values field —
+// this is the "form field" pattern: just a composed lens.
+function valuesField<T, K extends keyof T & string>(key: K) {
+  return composeLens(field<FormState<T>, "values">("values"), field<T, K>(key))
+}
+
 function makeRoot() {
   const el = document.createElement("div")
   document.body.appendChild(el)
   return el
-}
-
-function field(root: HTMLElement, key: string) {
-  return root.querySelector<HTMLElement>(`[data-form-field="${key}"]`)!
-}
-function errorSpan(root: HTMLElement, key: string) {
-  return root.querySelector<HTMLElement>(`[data-form-error="${key}"]`)!
-}
-function inputIn(root: HTMLElement, key: string) {
-  return field(root, key).querySelector("input")!
-}
-
-function focusout(el: HTMLElement) {
-  el.dispatchEvent(new FocusEvent("focusout", { bubbles: true }))
 }
 
 // ── createFormState ───────────────────────────────────────────────────────────
@@ -97,106 +89,48 @@ describe("isDirty", () => {
   })
 })
 
-// ── formField ─────────────────────────────────────────────────────────────────
+// ── lens-based form fields ────────────────────────────────────────────────────
 
-describe("formField", () => {
-  it("renders the inner widget inside a [data-form-field] wrapper", () => {
+describe("form fields via lens", () => {
+  it("focus + composeLens connects input widget to values field", () => {
     const root = makeRoot()
     const { state } = createForm({ defaults })
-    const w = stack<FormState<Profile>>(formField("name", inputWidget()))
-    const unmount = mount(w, state, root)
-    expect(field(root, "name")).not.toBeNull()
-    expect(inputIn(root, "name")).not.toBeNull()
-    unmount(); root.remove()
-  })
-
-  it("error span is hidden initially", () => {
-    const root = makeRoot()
-    const { state } = createForm({ defaults })
-    const w = stack<FormState<Profile>>(
-      formField("name", inputWidget(), (v) => v === "" ? "Required" : undefined),
-    )
-    const unmount = mount(w, state, root)
-    expect(errorSpan(root, "name").style.display).toBe("none")
-    unmount(); root.remove()
-  })
-
-  it("marks field touched and shows error on focusout", () => {
-    const root = makeRoot()
-    const { state } = createForm({ defaults })
-    const w = stack<FormState<Profile>>(
-      formField("name", inputWidget(), (v) => v === "" ? "Required" : undefined),
-    )
-    const unmount = mount(w, state, root)
-    focusout(field(root, "name"))
-    expect(state.get().touched["name"]).toBe(true)
-    expect(errorSpan(root, "name").style.display).toBe("")
-    expect(errorSpan(root, "name").textContent).toBe("Required")
-    unmount(); root.remove()
-  })
-
-  it("hides error after value is corrected", () => {
-    const root = makeRoot()
-    const { state } = createForm({ defaults })
-    const w = stack<FormState<Profile>>(
-      formField("name", inputWidget(), (v) => v === "" ? "Required" : undefined),
-    )
-    const unmount = mount(w, state, root)
-    focusout(field(root, "name"))
-    expect(errorSpan(root, "name").style.display).toBe("")
-    // Correct the value
-    const inp = inputIn(root, "name")
+    const nameInput = focus(inputWidget(), valuesField<Profile, "name">("name"))
+    const unmount = mount(nameInput, state, root)
+    const inp = root.querySelector("input")!
     inp.value = "Alice"
     inp.dispatchEvent(new Event("input"))
-    expect(errorSpan(root, "name").style.display).toBe("none")
+    expect(state.get().values.name).toBe("Alice")
     unmount(); root.remove()
   })
 
-  it("does not show error for untouched field before submit", () => {
+  it("signal update propagates back to input DOM node", () => {
+    const root = makeRoot()
+    const { state } = createForm({ defaults })
+    const nameInput = focus(inputWidget(), valuesField<Profile, "name">("name"))
+    const unmount = mount(nameInput, state, root)
+    state.set({ ...state.get(), values: { name: "Bob", email: "" } })
+    expect(root.querySelector("input")!.value).toBe("Bob")
+    unmount(); root.remove()
+  })
+
+  it("two focused widgets on the same state update independently", () => {
     const root = makeRoot()
     const { state } = createForm({ defaults })
     const w = stack<FormState<Profile>>(
-      formField("name",  inputWidget(), (v) => v === "" ? "Required" : undefined),
-      formField("email", inputWidget()),
+      focus(inputWidget(), valuesField<Profile, "name">("name")),
+      focus(inputWidget(), valuesField<Profile, "email">("email")),
     )
     const unmount = mount(w, state, root)
-    // Touch only email — name error should stay hidden
-    focusout(field(root, "email"))
-    expect(errorSpan(root, "name").style.display).toBe("none")
-    unmount(); root.remove()
-  })
-
-  it("shows all errors after submitCount > 0 regardless of touched", () => {
-    const root = makeRoot()
-    const { state, handleSubmit } = createForm({
-      defaults,
-      validate: (v) => ({
-        fieldErrors: {
-          name:  v.name  === "" ? ["Required"] : undefined,
-          email: v.email === "" ? ["Required"] : undefined,
-        },
-      }),
-    })
-    const w = stack<FormState<Profile>>(
-      formField("name",  inputWidget()),
-      formField("email", inputWidget()),
-    )
-    const unmount = mount(w, state, root)
-    handleSubmit(async () => {})(undefined)
-    expect(errorSpan(root, "name").style.display).toBe("")
-    expect(errorSpan(root, "email").style.display).toBe("")
-    unmount(); root.remove()
-  })
-
-  it("field value changes update state.values via focused signal", () => {
-    const root = makeRoot()
-    const { state } = createForm({ defaults })
-    const w = stack<FormState<Profile>>(formField("name", inputWidget()))
-    const unmount = mount(w, state, root)
-    const inp = inputIn(root, "name")
-    inp.value = "Bob"
-    inp.dispatchEvent(new Event("input"))
-    expect(state.get().values.name).toBe("Bob")
+    const [nameInp, emailInp] = root.querySelectorAll("input")
+    nameInp!.value = "Alice"
+    nameInp!.dispatchEvent(new Event("input"))
+    expect(state.get().values.name).toBe("Alice")
+    expect(state.get().values.email).toBe("")   // untouched
+    emailInp!.value = "a@b.com"
+    emailInp!.dispatchEvent(new Event("input"))
+    expect(state.get().values.email).toBe("a@b.com")
+    expect(state.get().values.name).toBe("Alice")  // still intact
     unmount(); root.remove()
   })
 })
@@ -274,7 +208,7 @@ describe("createForm > handleSubmit", () => {
   })
 })
 
-// ── createForm — reset ────────────────────────────────────────────────────────
+// ── createForm — reset / setErrors ────────────────────────────────────────────
 
 describe("createForm > reset", () => {
   it("restores all state to defaults", () => {
@@ -282,7 +216,7 @@ describe("createForm > reset", () => {
       defaults,
       validate: (v) => ({ fieldErrors: { name: v.name === "" ? ["Required"] : undefined } }),
     })
-    handleSubmit(async () => {})()   // mark submitted, add errors
+    handleSubmit(async () => {})()
     reset()
     const s = state.get()
     expect(s.values).toEqual(defaults)
@@ -294,43 +228,11 @@ describe("createForm > reset", () => {
   })
 })
 
-// ── createForm — setErrors ────────────────────────────────────────────────────
-
 describe("createForm > setErrors", () => {
   it("writes server field errors into state", () => {
     const { state, setErrors } = createForm({ defaults })
     setErrors({ name: ["Already taken"] }, ["Please fix errors above"])
     expect(state.get().fieldErrors["name"]).toEqual(["Already taken"])
     expect(state.get().formErrors).toEqual(["Please fix errors above"])
-  })
-})
-
-// ── stack ─────────────────────────────────────────────────────────────────────
-
-describe("stack", () => {
-  it("renders all widgets receiving the same signal", () => {
-    const root = makeRoot()
-    const { state } = createForm({ defaults })
-    const w = stack<FormState<Profile>>(
-      formField("name",  inputWidget({ placeholder: "Name" })),
-      formField("email", inputWidget({ placeholder: "Email" })),
-    )
-    const unmount = mount(w, state, root)
-    expect(root.querySelectorAll("input")).toHaveLength(2)
-    unmount(); root.remove()
-  })
-
-  it("all child widgets reflect signal updates", () => {
-    const root = makeRoot()
-    const { state } = createForm({ defaults })
-    const w = stack<FormState<Profile>>(
-      formField("name",  inputWidget()),
-      formField("email", inputWidget()),
-    )
-    const unmount = mount(w, state, root)
-    state.set({ ...state.get(), values: { name: "Alice", email: "alice@x.com" } })
-    expect(inputIn(root, "name").value).toBe("Alice")
-    expect(inputIn(root, "email").value).toBe("alice@x.com")
-    unmount(); root.remove()
   })
 })
