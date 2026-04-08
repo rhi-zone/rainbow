@@ -16,6 +16,10 @@
     "./widget": {
       "import": "./dist/widget.js",
       "types":  "./dist/widget.d.ts"
+    },
+    "./elements": {
+      "import": "./dist/elements.js",
+      "types":  "./dist/elements.d.ts"
     }
   },
   "files": ["dist"],

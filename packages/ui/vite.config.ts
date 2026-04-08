@@ -7,9 +7,10 @@ export default defineConfig({
   build: {
     lib: {
       entry: {
-        index:  'src/index.ts',
-        html:   'src/html.ts',
-        widget: 'src/widget.ts',
+        index:    'src/index.ts',
+        html:     'src/html.ts',
+        widget:   'src/widget.ts',
+        elements: 'src/elements.ts',
       },
       name: 'RainbowUi',
       formats: ['es'],
