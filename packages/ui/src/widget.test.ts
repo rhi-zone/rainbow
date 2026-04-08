@@ -20,6 +20,7 @@ import {
   map,
   show,
   concat,
+  eachKeyed,
   subscribe,
 } from "./widget.js"
 import * as h from "./html.js"
@@ -341,47 +342,91 @@ describe("map", () => {
 
 // ── show ─────────────────────────────────────────────────────────────────────
 
+type ShowState = { visible: boolean; text: string }
+
+function showContainer(root: HTMLElement): HTMLElement {
+  return root.querySelector("[data-show]") as HTMLElement
+}
+
 describe("show", () => {
-  it("renders when predicate is true", () => {
+  it("renders child immediately (eager) and is visible when predicate is true", () => {
     const root = makeRoot()
-    const s = signal({ visible: true, text: "hi" })
-    const w: Widget<typeof s extends Signal<infer T> ? T : never> = (sig) => {
+    const s = signal<ShowState>({ visible: true, text: "hi" })
+    const w: Widget<ShowState> = (sig) => {
       const node = document.createElement("div")
       node.textContent = sig.get().text
       return { _tag: "div", node }
     }
     const unmount = mount(show(w, (v) => v.visible), s, root)
+    expect(showContainer(root).style.display).toBe("")
     expect(root.textContent).toBe("hi")
     cleanup(root, unmount)
   })
 
-  it("renders nothing when predicate is false", () => {
+  it("hides via display:none when predicate is false — child stays in DOM", () => {
     const root = makeRoot()
-    const s = signal({ visible: false, text: "hi" })
-    const w: Widget<typeof s extends Signal<infer T> ? T : never> = (sig) => {
+    const s = signal<ShowState>({ visible: false, text: "hi" })
+    const w: Widget<ShowState> = (sig) => {
       const node = document.createElement("div")
       node.textContent = sig.get().text
       return { _tag: "div", node }
     }
     const unmount = mount(show(w, (v) => v.visible), s, root)
-    expect(root.textContent).toBe("")
+    // Container hidden, but child is still present in DOM
+    expect(showContainer(root).style.display).toBe("none")
+    expect(root.querySelector("div > div")).not.toBeNull()
     cleanup(root, unmount)
   })
 
-  it("toggles when predicate changes", () => {
+  it("does not recreate the child on toggle — same DOM node throughout", () => {
     const root = makeRoot()
-    const s = signal({ visible: false, text: "hi" })
-    const w: Widget<{ visible: boolean; text: string }> = (sig) => {
+    const s = signal<ShowState>({ visible: true, text: "hi" })
+    const w: Widget<ShowState> = (sig) => {
       const node = document.createElement("div")
       node.textContent = sig.get().text
       return { _tag: "div", node }
     }
     const unmount = mount(show(w, (v) => v.visible), s, root)
-    expect(root.textContent).toBe("")
-    s.set({ visible: true, text: "hi" })
-    expect(root.textContent).toBe("hi")
+    const childBefore = root.querySelector("[data-show] > div")
     s.set({ visible: false, text: "hi" })
-    expect(root.textContent).toBe("")
+    s.set({ visible: true, text: "hi" })
+    const childAfter = root.querySelector("[data-show] > div")
+    expect(childAfter).toBe(childBefore)  // same DOM node, not recreated
+    cleanup(root, unmount)
+  })
+
+  it("toggles display between '' and 'none'", () => {
+    const root = makeRoot()
+    const s = signal<ShowState>({ visible: false, text: "hi" })
+    const w: Widget<ShowState> = (sig) => {
+      const node = document.createElement("div")
+      node.textContent = sig.get().text
+      return { _tag: "div", node }
+    }
+    const unmount = mount(show(w, (v) => v.visible), s, root)
+    expect(showContainer(root).style.display).toBe("none")
+    s.set({ visible: true, text: "hi" })
+    expect(showContainer(root).style.display).toBe("")
+    s.set({ visible: false, text: "hi" })
+    expect(showContainer(root).style.display).toBe("none")
+    cleanup(root, unmount)
+  })
+
+  it("child signal stays subscribed and current while hidden", () => {
+    const root = makeRoot()
+    const s = signal<ShowState>({ visible: false, text: "initial" })
+    const w: Widget<ShowState> = (sig) => {
+      const node = document.createElement("div")
+      node.textContent = sig.get().text
+      subscribe(sig, (v) => { node.textContent = v.text })
+      return { _tag: "div", node }
+    }
+    const unmount = mount(show(w, (v) => v.visible), s, root)
+    // Update signal while hidden
+    s.set({ visible: false, text: "updated while hidden" })
+    // Show — child should reflect the latest value immediately, no re-render
+    s.set({ visible: true, text: "updated while hidden" })
+    expect(root.querySelector("[data-show] > div")?.textContent).toBe("updated while hidden")
     cleanup(root, unmount)
   })
 })
@@ -410,6 +455,119 @@ describe("concat", () => {
     // Both widgets render all 3 items
     expect(root.querySelectorAll("span")).toHaveLength(3)
     expect(root.querySelectorAll("b")).toHaveLength(3)
+    cleanup(root, unmount)
+  })
+})
+
+// ── eachKeyed ────────────────────────────────────────────────────────────────
+
+type Row = { id: number; label: string }
+
+function rowWidget(s: Signal<Row>): h.SpanEl {
+  const node = document.createElement("span")
+  node.dataset["id"] = String(s.get().id)
+  node.textContent = s.get().label
+  subscribe(s, (v) => { node.textContent = v.label })
+  return { _tag: "span", node }
+}
+
+describe("eachKeyed", () => {
+  const w = eachKeyed<number, Row>(rowWidget, (r) => r.id)
+
+  it("renders all items initially", () => {
+    const root = makeRoot()
+    const s = signal<Row[]>([{ id: 1, label: "a" }, { id: 2, label: "b" }])
+    const unmount = mount(w, s, root)
+    const spans = root.querySelectorAll("span")
+    expect(spans).toHaveLength(2)
+    expect(spans[0]?.textContent).toBe("a")
+    expect(spans[1]?.textContent).toBe("b")
+    cleanup(root, unmount)
+  })
+
+  it("preserves DOM node identity on reorder", () => {
+    const root = makeRoot()
+    const s = signal<Row[]>([{ id: 1, label: "a" }, { id: 2, label: "b" }])
+    const unmount = mount(w, s, root)
+    const nodeBefore = root.querySelector("[data-id='1']")
+    s.set([{ id: 2, label: "b" }, { id: 1, label: "a" }])
+    const nodeAfter = root.querySelector("[data-id='1']")
+    expect(nodeAfter).toBe(nodeBefore)  // same DOM node, just moved
+    const spans = root.querySelectorAll("span")
+    expect(spans[0]?.dataset["id"]).toBe("2")
+    expect(spans[1]?.dataset["id"]).toBe("1")
+    cleanup(root, unmount)
+  })
+
+  it("updates item value in place without recreating the node", () => {
+    const root = makeRoot()
+    const s = signal<Row[]>([{ id: 1, label: "a" }, { id: 2, label: "b" }])
+    let creates = 0
+    const countingW = eachKeyed<number, Row>((sig) => {
+      creates++
+      return rowWidget(sig)
+    }, (r) => r.id)
+    const unmount = mount(countingW, s, root)
+    const before = creates
+    s.set([{ id: 1, label: "X" }, { id: 2, label: "b" }])
+    expect(creates).toBe(before)  // no new widgets created
+    expect(root.querySelector("[data-id='1']")?.textContent).toBe("X")
+    cleanup(root, unmount)
+  })
+
+  it("adds new items without recreating existing ones", () => {
+    const root = makeRoot()
+    const s = signal<Row[]>([{ id: 1, label: "a" }])
+    let creates = 0
+    const countingW = eachKeyed<number, Row>((sig) => {
+      creates++
+      return rowWidget(sig)
+    }, (r) => r.id)
+    const unmount = mount(countingW, s, root)
+    const before = creates
+    s.set([{ id: 1, label: "a" }, { id: 2, label: "b" }])
+    expect(creates).toBe(before + 1)  // only one new widget
+    expect(root.querySelectorAll("span")).toHaveLength(2)
+    cleanup(root, unmount)
+  })
+
+  it("removes items and calls cleanup", () => {
+    const root = makeRoot()
+    const s = signal<Row[]>([{ id: 1, label: "a" }, { id: 2, label: "b" }, { id: 3, label: "c" }])
+    const unmount = mount(w, s, root)
+    s.set([{ id: 1, label: "a" }, { id: 3, label: "c" }])
+    const spans = root.querySelectorAll("span")
+    expect(spans).toHaveLength(2)
+    expect(spans[0]?.dataset["id"]).toBe("1")
+    expect(spans[1]?.dataset["id"]).toBe("3")
+    cleanup(root, unmount)
+  })
+
+  it("write-back: item widget write propagates to parent list signal", () => {
+    const root = makeRoot()
+    // Single item so capturedSignal unambiguously belongs to id=1
+    const s = signal<Row[]>([{ id: 1, label: "a" }])
+    let capturedSignal: Signal<Row> | undefined
+    const capturingW = eachKeyed<number, Row>((sig) => {
+      capturedSignal = sig
+      return rowWidget(sig)
+    }, (r) => r.id)
+    const unmount = mount(capturingW, s, root)
+    capturedSignal!.set({ id: 1, label: "written-back" })
+    expect(s.get()[0]?.label).toBe("written-back")
+    cleanup(root, unmount)
+  })
+
+  it("write-back does not cycle: parent update does not re-trigger write-back", () => {
+    const root = makeRoot()
+    const s = signal<Row[]>([{ id: 1, label: "a" }])
+    let listSets = 0
+    const origSet = s.set.bind(s)
+    s.set = (v) => { listSets++; origSet(v) }
+    const unmount = mount(w, s, root)
+    const initialSets = listSets
+    s.set([{ id: 1, label: "from-parent" }])
+    expect(listSets).toBe(initialSets + 1)  // only one set, no cycle
     cleanup(root, unmount)
   })
 })

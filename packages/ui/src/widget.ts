@@ -36,6 +36,7 @@ import {
   type ReadonlySignal,
   type Lens,
   type Prism,
+  signal as _signal,
   lens,
   fst,
   snd,
@@ -340,6 +341,19 @@ export function map<A, B, E extends AnyEl>(
  * @example
  * show(detailsWidget, (form) => form.advanced)
  */
+/**
+ * Boolean gate. Renders the child widget when `predicate` holds; hides it
+ * (via `display:none`) otherwise. Simpler than `narrow` when there is no
+ * Prism — just a boolean condition. SolidJS `<Show>` is the prior art.
+ *
+ * The child is rendered **eagerly** and kept alive in the DOM. Toggling
+ * visibility is a single style-property write — no DOM teardown/rebuild, no
+ * GC pressure, and subscriptions remain active so the child stays current
+ * while hidden (showing is instant, no catch-up render required).
+ *
+ * @example
+ * show(detailsWidget, (form) => form.advanced)
+ */
 export function show<A>(
   w: Widget<A, FlowContent>,
   predicate: (a: A) => boolean,
@@ -348,28 +362,15 @@ export function show<A>(
     const node = document.createElement("div")
     node.dataset["show"] = ""
 
-    let innerCleanup: (() => void) | null = null
+    const [child, cleanup] = _track(() => w(s))
+    node.appendChild(child.node)
+    _register(cleanup)
 
-    const update = (v: A) => {
-      if (predicate(v)) {
-        if (innerCleanup === null) {
-          const [child, cleanup] = _track(() => w(s))
-          innerCleanup = cleanup
-          node.appendChild(child.node)
-        }
-        // Already rendered — child's own subs handle value updates
-      } else {
-        if (innerCleanup !== null) {
-          innerCleanup()
-          innerCleanup = null
-          node.replaceChildren()
-        }
-      }
+    const applyVisibility = (v: A) => {
+      node.style.display = predicate(v) ? "" : "none"
     }
-
-    update(s.get())
-    subscribe(s, update)
-    _register(() => innerCleanup?.())
+    applyVisibility(s.get())
+    subscribe(s, applyVisibility)
 
     return { _tag: "div", node }
   }
@@ -402,6 +403,122 @@ export function concat<A>(
     node.appendChild(cb.node)
     _register(cleanupA)
     _register(cleanupB)
+    return { _tag: "div", node }
+  }
+}
+
+// ── Keyed list combinator ─────────────────────────────────────────────────────
+
+/** Internal entry kept per key in eachKeyed's cache. */
+type KeyEntry<A> = {
+  /** The item's own mutable signal cell. */
+  readonly itemSignal: Signal<A>
+  /** The DOM node produced by the item widget. Used for reordering. */
+  readonly childNode: ChildNode
+  /** Unsubscribes widget internals + write-back listener. */
+  readonly cleanup: () => void
+  /** Sets itemSignal without triggering the write-back subscriber. */
+  readonly setFromParent: (v: A) => void
+}
+
+/**
+ * Keyed list rendering. Each item is identified by a stable key; DOM nodes
+ * and widget state are preserved across list mutations (reorder, insert,
+ * remove). Only newly-added keys allocate DOM nodes and signal subscriptions.
+ *
+ * Write-back: if an item widget sets its signal (e.g. an editable field),
+ * the change propagates back to the parent list signal at the item's current
+ * key position. A flag prevents the resulting list update from cycling back.
+ *
+ * GC note: O(n) `Object.is` comparisons per list update (to sync item
+ * signals), but O(new keys) DOM/signal allocations. Stable lists are cheap.
+ *
+ * @example
+ * eachKeyed(rowWidget, (row) => row.id)
+ */
+export function eachKeyed<K extends string | number, A>(
+  w: Widget<A, FlowContent>,
+  key: (a: A) => K,
+): Widget<A[], DivEl> {
+  return (listSignal) => {
+    const node = document.createElement("div")
+    node.dataset["eachKeyed"] = ""
+
+    const cache = new Map<K, KeyEntry<A>>()
+
+    const makeEntry = (k: K, item: A): KeyEntry<A> => {
+      const itemSignal = _signal(item)
+      let fromParent = false
+
+      // Write-back: item widget writes → find current index by key → update list.
+      // Skipped when the update originated from the parent (fromParent flag).
+      const writeBackUnsub = itemSignal.subscribe((v) => {
+        if (fromParent) return
+        const list = listSignal.get()
+        const idx = list.findIndex((a) => key(a) === k)
+        if (idx !== -1 && !Object.is(list[idx], v)) {
+          const copy = [...list]
+          copy[idx] = v
+          listSignal.set(copy)
+        }
+      })
+
+      const [child, widgetCleanup] = _track(() => w(itemSignal))
+
+      return {
+        itemSignal,
+        childNode: child.node,
+        cleanup: () => { widgetCleanup(); writeBackUnsub() },
+        setFromParent: (v) => {
+          fromParent = true
+          itemSignal.set(v)
+          fromParent = false
+        },
+      }
+    }
+
+    const update = (items: A[]) => {
+      const nextKeys = items.map(key)
+      const nextSet = new Set(nextKeys)
+
+      // 1. Remove keys no longer present
+      for (const [k, entry] of cache) {
+        if (!nextSet.has(k)) {
+          entry.cleanup()
+          entry.childNode.parentNode?.removeChild(entry.childNode)
+          cache.delete(k)
+        }
+      }
+
+      // 2. Create entries for new keys; sync values for existing ones
+      for (let i = 0; i < items.length; i++) {
+        const k = nextKeys[i]!
+        const item = items[i]!
+        if (!cache.has(k)) {
+          cache.set(k, makeEntry(k, item))
+        } else {
+          // O(1) no-op if value unchanged (signal.set deduplicates via Object.is)
+          cache.get(k)!.setFromParent(item)
+        }
+      }
+
+      // 3. Reorder DOM nodes to match new order (insert in reverse, O(n)).
+      // Check parentNode too: new entries aren't in the container yet, so their
+      // nextSibling is null regardless of position — always insert them.
+      let ref: ChildNode | null = null
+      for (let i = items.length - 1; i >= 0; i--) {
+        const entry = cache.get(nextKeys[i]!)!
+        if (entry.childNode.parentNode !== node || entry.childNode.nextSibling !== ref) {
+          node.insertBefore(entry.childNode, ref)
+        }
+        ref = entry.childNode
+      }
+    }
+
+    update(listSignal.get())
+    subscribe(listSignal, update)
+    _register(() => { for (const entry of cache.values()) entry.cleanup() })
+
     return { _tag: "div", node }
   }
 }
