@@ -58,3 +58,36 @@ The `on field input_string` pattern from Unicorn.
 Rainbow has the pieces (focus + signal), but a form-specific API
 (validation, touched/dirty, submission) would make this a compelling
 alternative to react-hook-form.
+
+## rainbow-ui backlog
+
+Design doc: `docs/design/ui-elements.md`
+
+### SVG child elements (delegatable — mechanical)
+Add `CircleEl`, `RectEl`, `EllipseEl`, `LineEl`, `PolylineEl`, `PolygonEl`,
+`PathEl`, `TextEl`, `TspanEl`, `GEl`, `DefsEl`, `SymbolEl`, `UseEl`,
+`ClipPathEl`, `MaskEl`, `LinearGradientEl`, `RadialGradientEl`, `StopEl`,
+`PatternEl`, `SvgImageEl`, `ForeignObjectEl` + matching attr types + a
+`SvgContent` category union in `html.ts`. Needs `_svgEl` helper using
+`createElementNS("http://www.w3.org/2000/svg", ...)`.
+
+### `on` event helper (small, unblocked)
+```ts
+on(el, "click", fn)  // addEventListener + registers removeEventListener as cleanup
+```
+Lives in `widget.ts`, exported. Used by form binding helpers.
+
+### Form binding helpers + input widgets (unblocked after `on`)
+`bindInput`, `bindSelect`, `bindCheckbox` low-level helpers.
+Pre-built widgets: `inputWidget`, `textareaWidget`, `selectWidget`,
+`checkboxWidget`, `numberInputWidget`. See design doc §3.
+
+### `fromPromise` / `fromAsync` (rainbow core, not rainbow-ui)
+Signal adapters for async data. `fromAsync` takes deps signal + async fn +
+AbortSignal for cancellation. Lives in `@rhi-zone/rainbow`, not rainbow-ui.
+See design doc §2 and existing "async" open question above.
+
+### `defineElement` custom element wrapper (blocked on nothing, but non-trivial)
+`defineElement(tag, widget, defaults, { shadow, attrs, styles })`.
+Shadow DOM opt-in, attribute type coercion, JS property accessors, adopted
+stylesheets. Lives in rainbow-ui. See design doc §1.
