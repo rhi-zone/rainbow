@@ -21,7 +21,7 @@ import {
   show,
   concat,
   eachKeyed,
-  templ,
+  template,
   subscribe,
 } from "./widget.js"
 import * as h from "./html.js"
@@ -581,7 +581,7 @@ describe("templ", () => {
   it("renders template with refs on initial mount", () => {
     const root = makeRoot()
     const s = signal<Item>({ label: "score", value: 42 })
-    const w = templ(
+    const w = template(
       `<div class="card"><span data-ref="name"></span><b data-ref="score"></b></div>`,
       { name: "span", score: "b" } as const,
       (sig, { name, score }) => {
@@ -598,7 +598,7 @@ describe("templ", () => {
   it("updates refs via subscription", () => {
     const root = makeRoot()
     const s = signal<Item>({ label: "score", value: 42 })
-    const w = templ(
+    const w = template(
       `<div class="card"><span data-ref="name"></span><b data-ref="score"></b></div>`,
       { name: "span", score: "b" } as const,
       (sig, { name, score }) => {
@@ -621,7 +621,7 @@ describe("templ", () => {
     const root = makeRoot()
     const s1 = signal<Item>({ label: "a", value: 1 })
     const s2 = signal<Item>({ label: "b", value: 2 })
-    const makeW = () => templ(
+    const makeW = () => template(
       `<div><span data-ref="lbl"></span></div>`,
       { lbl: "span" } as const,
       (sig, { lbl }) => {
@@ -646,7 +646,7 @@ describe("templ", () => {
     const root = makeRoot()
     const s = signal<Item>({ label: "a", value: 1 })
     let calls = 0
-    const w = templ(
+    const w = template(
       `<div><span data-ref="lbl"></span></div>`,
       { lbl: "span" } as const,
       (sig, { lbl }) => {
@@ -663,7 +663,7 @@ describe("templ", () => {
 
   it("throws a descriptive error when a declared ref is absent from the template", () => {
     const s = signal<Item>({ label: "a", value: 1 })
-    const w = templ(
+    const w = template(
       `<div><span data-ref="other"></span></div>`,
       { missing: "span" } as const,
       () => {},

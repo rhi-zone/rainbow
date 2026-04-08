@@ -433,7 +433,7 @@ export type RefsMap<R extends Record<string, keyof HTMLElementTagNameMap>> = {
  * @throws if a declared ref is absent from the cloned template.
  *
  * @example
- * const cardWidget = templ(
+ * const cardWidget = template(
  *   `<div class="card"><span data-ref="name"></span><b data-ref="score"></b></div>`,
  *   { name: "span", score: "b" } as const,
  *   (s, { name, score }) => {
@@ -446,7 +446,7 @@ export type RefsMap<R extends Record<string, keyof HTMLElementTagNameMap>> = {
  *   }
  * )
  */
-export function templ<const R extends Record<string, keyof HTMLElementTagNameMap>, T>(
+export function template<const R extends Record<string, keyof HTMLElementTagNameMap>, T>(
   innerHTML: string,
   refs: R,
   bind: (signal: Signal<T>, refs: RefsMap<R>) => void,
