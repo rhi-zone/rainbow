@@ -22,6 +22,15 @@ import {
   concat,
   eachKeyed,
   template,
+  on,
+  bindInput,
+  bindSelect,
+  bindCheckbox,
+  inputWidget,
+  textareaWidget,
+  checkboxWidget,
+  numberInputWidget,
+  selectWidget,
   subscribe,
 } from "./widget.js"
 import * as h from "./html.js"
@@ -669,5 +678,217 @@ describe("templ", () => {
       () => {},
     )
     expect(() => w(s as unknown as Parameters<typeof w>[0])).toThrow(/ref "missing" not found/)
+  })
+})
+
+// ── on ────────────────────────────────────────────────────────────────────────
+
+describe("on", () => {
+  it("attaches event listener and fires on event", () => {
+    const root = makeRoot()
+    const s = signal(0)
+    const w: Widget<number> = (sig) => {
+      const node = document.createElement("div")
+      node.textContent = String(sig.get())
+      subscribe(sig, (v) => { node.textContent = String(v) })
+      on(node, "click", () => sig.set(sig.get() + 1))
+      return { _tag: "div", node }
+    }
+    const unmount = mount(w, s, root)
+    root.querySelector("div")!.dispatchEvent(new Event("click"))
+    expect(s.get()).toBe(1)
+    cleanup(root, unmount)
+  })
+
+  it("removes listener after unmount", () => {
+    const root = makeRoot()
+    const s = signal(0)
+    let clicks = 0
+    const w: Widget<number> = (sig) => {
+      const node = document.createElement("div")
+      on(node, "click", () => { clicks++; sig.set(sig.get() + 1) })
+      return { _tag: "div", node }
+    }
+    const unmount = mount(w, s, root)
+    const div = root.querySelector("div")!
+    unmount()
+    div.dispatchEvent(new Event("click"))
+    expect(clicks).toBe(0)
+  })
+})
+
+// ── bindInput / bindSelect / bindCheckbox ─────────────────────────────────────
+
+describe("bindInput", () => {
+  it("sets initial value from signal", () => {
+    const root = makeRoot()
+    const s = signal("hello")
+    const w: Widget<string, h.InputEl> = (sig) => {
+      const el = { _tag: "input" as const, node: document.createElement("input") }
+      el.node.value = sig.get()
+      bindInput(el.node, sig)
+      return el
+    }
+    mount(w, s, root)
+    expect(root.querySelector("input")!.value).toBe("hello")
+    root.remove()
+  })
+
+  it("signal → DOM: updates input value when signal changes", () => {
+    const root = makeRoot()
+    const s = signal("a")
+    const w: Widget<string, h.InputEl> = (sig) => {
+      const el = { _tag: "input" as const, node: document.createElement("input") }
+      el.node.value = sig.get()
+      bindInput(el.node, sig)
+      return el
+    }
+    const unmount = mount(w, s, root)
+    s.set("b")
+    expect(root.querySelector("input")!.value).toBe("b")
+    cleanup(root, unmount)
+  })
+
+  it("DOM → signal: input event updates signal", () => {
+    const root = makeRoot()
+    const s = signal("a")
+    const w: Widget<string, h.InputEl> = (sig) => {
+      const el = { _tag: "input" as const, node: document.createElement("input") }
+      el.node.value = sig.get()
+      bindInput(el.node, sig)
+      return el
+    }
+    const unmount = mount(w, s, root)
+    const input = root.querySelector("input")!
+    input.value = "typed"
+    input.dispatchEvent(new Event("input"))
+    expect(s.get()).toBe("typed")
+    cleanup(root, unmount)
+  })
+})
+
+describe("bindCheckbox", () => {
+  it("syncs checked state both ways", () => {
+    const root = makeRoot()
+    const s = signal(false)
+    const w: Widget<boolean, h.InputEl> = (sig) => {
+      const el = { _tag: "input" as const, node: document.createElement("input") }
+      el.node.type = "checkbox"
+      el.node.checked = sig.get()
+      bindCheckbox(el.node, sig)
+      return el
+    }
+    const unmount = mount(w, s, root)
+    const cb = root.querySelector("input")!
+    // signal → DOM
+    s.set(true)
+    expect(cb.checked).toBe(true)
+    // DOM → signal
+    cb.checked = false
+    cb.dispatchEvent(new Event("change"))
+    expect(s.get()).toBe(false)
+    cleanup(root, unmount)
+  })
+})
+
+// ── pre-built form widgets ────────────────────────────────────────────────────
+
+describe("inputWidget", () => {
+  it("renders an input with initial value", () => {
+    const root = makeRoot()
+    const s = signal("Alice")
+    const unmount = mount(inputWidget({ placeholder: "Name" }), s, root)
+    expect(root.querySelector("input")!.value).toBe("Alice")
+    cleanup(root, unmount)
+  })
+
+  it("updates signal when user types", () => {
+    const root = makeRoot()
+    const s = signal("")
+    const unmount = mount(inputWidget(), s, root)
+    const input = root.querySelector("input")!
+    input.value = "Bob"
+    input.dispatchEvent(new Event("input"))
+    expect(s.get()).toBe("Bob")
+    cleanup(root, unmount)
+  })
+})
+
+describe("checkboxWidget", () => {
+  it("reflects signal boolean as checked state", () => {
+    const root = makeRoot()
+    const s = signal(true)
+    const unmount = mount(checkboxWidget(), s, root)
+    expect(root.querySelector("input")!.checked).toBe(true)
+    s.set(false)
+    expect(root.querySelector("input")!.checked).toBe(false)
+    cleanup(root, unmount)
+  })
+})
+
+describe("numberInputWidget", () => {
+  it("renders numeric value and updates signal on input", () => {
+    const root = makeRoot()
+    const s = signal(42)
+    const unmount = mount(numberInputWidget(), s, root)
+    expect(root.querySelector("input")!.value).toBe("42")
+    const input = root.querySelector("input")!
+    input.value = "99"
+    input.dispatchEvent(new Event("input"))
+    expect(s.get()).toBe(99)
+    cleanup(root, unmount)
+  })
+
+  it("ignores NaN input — signal unchanged", () => {
+    const root = makeRoot()
+    const s = signal(10)
+    const unmount = mount(numberInputWidget(), s, root)
+    const input = root.querySelector("input")!
+    input.value = "not-a-number"
+    input.dispatchEvent(new Event("input"))
+    expect(s.get()).toBe(10)
+    cleanup(root, unmount)
+  })
+})
+
+describe("selectWidget", () => {
+  const opts = [
+    { value: "au", label: "Australia" },
+    { value: "nz", label: "New Zealand" },
+  ]
+
+  it("renders options and selects initial value", () => {
+    const root = makeRoot()
+    const s = signal("nz")
+    const unmount = mount(selectWidget(opts), s, root)
+    const sel = root.querySelector("select")!
+    expect(sel.querySelectorAll("option")).toHaveLength(2)
+    expect(sel.value).toBe("nz")
+    cleanup(root, unmount)
+  })
+
+  it("updates signal on change", () => {
+    const root = makeRoot()
+    const s = signal("au")
+    const unmount = mount(selectWidget(opts), s, root)
+    const sel = root.querySelector("select")!
+    sel.value = "nz"
+    sel.dispatchEvent(new Event("change"))
+    expect(s.get()).toBe("nz")
+    cleanup(root, unmount)
+  })
+})
+
+describe("textareaWidget", () => {
+  it("renders textarea with initial value and syncs on input", () => {
+    const root = makeRoot()
+    const s = signal("draft")
+    const unmount = mount(textareaWidget({ rows: 4 }), s, root)
+    expect(root.querySelector("textarea")!.value).toBe("draft")
+    const ta = root.querySelector("textarea")!
+    ta.value = "edited"
+    ta.dispatchEvent(new Event("input"))
+    expect(s.get()).toBe("edited")
+    cleanup(root, unmount)
   })
 })

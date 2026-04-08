@@ -550,7 +550,7 @@ export const polygon        = (attrs: PolygonAttrs): PolygonEl =>
 export const path           = (attrs: PathAttrs): PathEl =>
   _svgVoid<"path", SVGPathElement>("path")(attrs as RawAttrs)
 
-export const text           = (attrs: TextAttrs, ...children: (TspanEl | string)[]): TextEl =>
+export const svgText        = (attrs: TextAttrs, ...children: (TspanEl | string)[]): TextEl =>
   _svgEl<"text", SVGTextElement>("text")(attrs as RawAttrs, ...children)
 
 export const tspan          = (attrs: TspanAttrs, ...children: (TspanEl | string)[]): TspanEl =>

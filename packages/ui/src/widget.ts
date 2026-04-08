@@ -42,7 +42,18 @@ import {
   snd,
   stateful,
 } from "@rhi-zone/rainbow"
-import type { AnyEl, El, FlowContent, DivEl } from "./html.js"
+import {
+  input as _input,
+  textarea as _textarea,
+  select as _select,
+  option as _option,
+} from "./html.js"
+import type {
+  AnyEl, El, FlowContent, DivEl,
+  InputEl, InputAttrs,
+  TextareaEl, TextareaAttrs,
+  SelectEl, SelectAttrs,
+} from "./html.js"
 
 // ── Widget type ───────────────────────────────────────────────────────────────
 
@@ -590,5 +601,141 @@ export function eachKeyed<K extends string | number, A>(
     _register(() => { for (const entry of cache.values()) entry.cleanup() })
 
     return { _tag: "div", node }
+  }
+}
+
+// ── Event helper ──────────────────────────────────────────────────────────────
+
+/**
+ * Attach a typed event listener and register its removal as cleanup.
+ * Must be called during a widget call context (directly or via a combinator).
+ *
+ * @example
+ * on(buttonEl.node, "click", () => s.set(s.get() + 1))
+ */
+export function on<K extends keyof HTMLElementEventMap>(
+  el: EventTarget,
+  event: K,
+  fn: (e: HTMLElementEventMap[K]) => void,
+): void {
+  const handler = fn as unknown as EventListener
+  el.addEventListener(event, handler)
+  _register(() => el.removeEventListener(event, handler))
+}
+
+// ── Form binding helpers ──────────────────────────────────────────────────────
+
+/**
+ * Two-way bind a text `<input>` or `<textarea>` to a `Signal<string>`.
+ * DOM → signal on `input` event; signal → DOM only when the value actually
+ * differs (guards against cursor-jump on mid-type updates).
+ *
+ * Must be called during a widget call context.
+ */
+export function bindInput(
+  el: HTMLInputElement | HTMLTextAreaElement,
+  s: Signal<string>,
+): void {
+  on(el, "input", () => s.set(el.value))
+  subscribe(s, (v) => { if (el.value !== v) el.value = v })
+}
+
+/**
+ * Two-way bind a `<select>` to a `Signal<string>`.
+ * DOM → signal on `change` event; signal → DOM when value differs.
+ *
+ * Must be called during a widget call context.
+ */
+export function bindSelect(el: HTMLSelectElement, s: Signal<string>): void {
+  on(el, "change", () => s.set(el.value))
+  subscribe(s, (v) => { if (el.value !== v) el.value = v })
+}
+
+/**
+ * Two-way bind a checkbox `<input>` to a `Signal<boolean>`.
+ * DOM → signal on `change` event; signal → DOM when checked state differs.
+ *
+ * Must be called during a widget call context.
+ */
+export function bindCheckbox(el: HTMLInputElement, s: Signal<boolean>): void {
+  on(el, "change", () => s.set(el.checked))
+  subscribe(s, (v) => { if (el.checked !== v) el.checked = v })
+}
+
+// ── Pre-built form widgets ────────────────────────────────────────────────────
+
+/**
+ * Text input widget. The `value` attr is omitted from `attrs` — the signal
+ * owns the value. Use `focus` to connect to a field on a larger signal.
+ *
+ * @example
+ * focus(inputWidget({ placeholder: "Name" }), field("name"))
+ */
+export function inputWidget(attrs?: Omit<InputAttrs, "value">): Widget<string, InputEl> {
+  return (s) => {
+    const el = _input(attrs ?? {})
+    el.node.value = s.get()
+    bindInput(el.node, s)
+    return el
+  }
+}
+
+/**
+ * Textarea widget. Signal owns the value.
+ */
+export function textareaWidget(attrs?: TextareaAttrs): Widget<string, TextareaEl> {
+  return (s) => {
+    const el = _textarea(attrs ?? {})
+    el.node.value = s.get()
+    bindInput(el.node, s)
+    return el
+  }
+}
+
+/**
+ * Checkbox widget. Signal owns the checked state.
+ */
+export function checkboxWidget(attrs?: Omit<InputAttrs, "type" | "checked">): Widget<boolean, InputEl> {
+  return (s) => {
+    const el = _input({ ...attrs, type: "checkbox" })
+    el.node.checked = s.get()
+    bindCheckbox(el.node, s)
+    return el
+  }
+}
+
+/**
+ * Number input widget. Signal owns the numeric value. NaN inputs are ignored
+ * (the signal is only updated when the parsed value is a valid number).
+ */
+export function numberInputWidget(attrs?: Omit<InputAttrs, "value" | "type">): Widget<number, InputEl> {
+  return (s) => {
+    const el = _input({ ...attrs, type: "number" })
+    el.node.value = String(s.get())
+    on(el.node, "input", () => {
+      const n = el.node.valueAsNumber
+      if (!isNaN(n)) s.set(n)
+    })
+    subscribe(s, (v) => { if (el.node.valueAsNumber !== v) el.node.value = String(v) })
+    return el
+  }
+}
+
+/**
+ * Select widget with a static options list. Signal owns the selected value.
+ * For dynamic options, compose `each` + `focus` over a list signal instead.
+ *
+ * @example
+ * selectWidget([{ value: "au", label: "Australia" }, { value: "nz", label: "New Zealand" }])
+ */
+export function selectWidget(
+  options: { value: string; label: string }[],
+  attrs?: SelectAttrs,
+): Widget<string, SelectEl> {
+  return (s) => {
+    const el = _select(attrs ?? {}, ...(options.map((o) => _option({ value: o.value }, o.label))))
+    el.node.value = s.get()
+    bindSelect(el.node, s)
+    return el
   }
 }
