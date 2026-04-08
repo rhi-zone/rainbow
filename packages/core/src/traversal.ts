@@ -8,10 +8,17 @@ import type { Lens } from './lens.ts'
  *   modify(modify(a, f), g) = modify(a, g ∘ f)   [when f, g commute on elements]
  */
 export interface Traversal<A, B> {
+  /** Extract all focused values from `a`. */
   getAll(a: A): B[]
+  /** Apply `f` to every focused value and return the updated `a`. */
   modify(a: A, f: (b: B) => B): A
 }
 
+/**
+ * Construct a traversal from explicit getAll and modify functions.
+ * @param getAll - Extract all focused values.
+ * @param modify - Apply a function to every focused value.
+ */
 export function traversal<A, B>(
   getAll: (a: A) => B[],
   modify: (a: A, f: (b: B) => B) => A,
@@ -27,7 +34,10 @@ export function each<B>(): Traversal<B[], B> {
   )
 }
 
-/** Focus on elements matching a predicate */
+/**
+ * Focus on elements matching a predicate.
+ * Non-matching elements pass through unmodified.
+ */
 export function filtered<B>(pred: (b: B) => boolean): Traversal<B[], B> {
   return traversal(
     (a) => a.filter(pred),
@@ -35,7 +45,10 @@ export function filtered<B>(pred: (b: B) => boolean): Traversal<B[], B> {
   )
 }
 
-/** Focus on a single element by index */
+/**
+ * Focus on a single element by index.
+ * If the index is out of bounds, `getAll` returns `[]` and `modify` is a no-op.
+ */
 export function nth<B>(index: number): Traversal<B[], B> {
   return traversal(
     (a) => a.filter((_, i) => i === index),
@@ -43,7 +56,10 @@ export function nth<B>(index: number): Traversal<B[], B> {
   )
 }
 
-/** Compose a lens with a traversal */
+/**
+ * Compose a lens with a traversal.
+ * Focuses the lens on B within A, then the traversal on C within B.
+ */
 export function composeWithLens<A, B extends object, C>(
   lens: Lens<A, B>,
   t: Traversal<B, C>,
@@ -54,7 +70,10 @@ export function composeWithLens<A, B extends object, C>(
   )
 }
 
-/** Compose two traversals */
+/**
+ * Compose two traversals.
+ * `getAll` flatMaps; `modify` nests.
+ */
 export function composeTraversal<A, B, C>(
   ab: Traversal<A, B>,
   bc: Traversal<B, C>,

@@ -4,6 +4,7 @@ import type { ScrollHandler } from './types.ts'
 // scrollTop — always scroll to top of page
 // ---------------------------------------------------------------------------
 
+/** Scroll to the top of the page on every navigation. */
 export const scrollTop: ScrollHandler = (_nav) => {
   window.scrollTo(0, 0)
 }
@@ -12,6 +13,7 @@ export const scrollTop: ScrollHandler = (_nav) => {
 // scrollNone — no-op handler
 // ---------------------------------------------------------------------------
 
+/** No-op scroll handler — do not scroll on navigation. */
 export const scrollNone: ScrollHandler = (_nav) => {
   // intentional no-op
 }
@@ -20,6 +22,10 @@ export const scrollNone: ScrollHandler = (_nav) => {
 // scrollToHash — scroll to anchor element when hash is present
 // ---------------------------------------------------------------------------
 
+/**
+ * Scroll to the element matching the URL hash on navigation.
+ * If the hash is absent or no element is found, no scroll occurs.
+ */
 export const scrollToHash: ScrollHandler = (nav) => {
   if (nav.hash) {
     document.getElementById(nav.hash)?.scrollIntoView()
@@ -43,6 +49,14 @@ type ScrollState = {
   _scrollY?: number
 }
 
+/**
+ * Save the current scroll position before navigating away and restore it on
+ * browser back/forward (pop). On push/replace, scrolls to the hash anchor if
+ * present, otherwise to the top of the page.
+ *
+ * Scroll coordinates are stored in `history.state` so they survive page refreshes.
+ * This is the default scroll handler used by the `defaults` entry point.
+ */
 export const scrollRestore: ScrollHandler = (nav) => {
   if (nav.type === 'push' || nav.type === 'replace') {
     // Save the current scroll position into the *current* history entry before

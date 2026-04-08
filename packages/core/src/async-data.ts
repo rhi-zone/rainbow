@@ -21,12 +21,16 @@ export type AsyncData<T, E = unknown> =
 // Constructors
 // ---------------------------------------------------------------------------
 
+/** Singleton for the "not yet requested" state. */
 export const notAsked: AsyncData<never, never> = { status: 'notAsked' }
+/** Singleton for the "request in flight" state. */
 export const loading:  AsyncData<never, never> = { status: 'loading' }
 
+/** Construct a failure value. */
 export const failure = <E>(error: E): AsyncData<never, E> =>
   ({ status: 'failure', error })
 
+/** Construct a success value. */
 export const success = <T>(value: T): AsyncData<T, never> =>
   ({ status: 'success', value })
 
@@ -34,9 +38,13 @@ export const success = <T>(value: T): AsyncData<T, never> =>
 // Guards
 // ---------------------------------------------------------------------------
 
+/** Narrowing guard for the `notAsked` state. */
 export const isNotAsked = <T, E>(ad: AsyncData<T, E>): ad is { status: 'notAsked' }                  => ad.status === 'notAsked'
+/** Narrowing guard for the `loading` state. */
 export const isLoading  = <T, E>(ad: AsyncData<T, E>): ad is { status: 'loading' }                   => ad.status === 'loading'
+/** Narrowing guard for the `failure` state. */
 export const isFailure  = <T, E>(ad: AsyncData<T, E>): ad is { status: 'failure'; error: E }         => ad.status === 'failure'
+/** Narrowing guard for the `success` state. */
 export const isSuccess  = <T, E>(ad: AsyncData<T, E>): ad is { status: 'success'; value: T }         => ad.status === 'success'
 
 // ---------------------------------------------------------------------------
@@ -82,11 +90,17 @@ export const chain = <T, U, E>(
   }
 }
 
-/** Unwrap with a fallback for non-success states. */
+/**
+ * Unwrap the success value, or return `fallback` for all other states.
+ * @param fallback - Value to return when not in the success state.
+ */
 export const getOrElse = <T, E>(ad: AsyncData<T, E>, fallback: T): T =>
   isSuccess(ad) ? ad.value : fallback
 
-/** Fold over all four states. */
+/**
+ * Fold over all four states.
+ * @param cases - Handlers for each state; all four must be provided.
+ */
 export const fold = <T, E, R>(
   ad: AsyncData<T, E>,
   cases: {

@@ -41,20 +41,33 @@ export function batch(fn: () => void): void {
  * Reading tracks the dependency; writing propagates to subscribers.
  */
 export interface Signal<A> {
+  /** Return the current value. */
   get(): A
+  /** Update the value and notify subscribers. No-op if the value is unchanged (`Object.is`). */
   set(a: A): void
+  /**
+   * Subscribe to value changes.
+   * @returns An unsubscribe function.
+   */
   subscribe(fn: Subscriber<A>): () => void
-  /** Read-only derived signal */
+  /** Return a read-only derived signal by applying `f` to each value. */
   map<B>(f: (a: A) => B): ReadonlySignal<B>
-  /** Read-write focused signal via lens */
+  /** Return a read-write signal focused on B via a lens. */
   focus<B>(lens: Lens<A, B>): Signal<B>
-  /** Read-write focused signal via prism (undefined when case doesn't match) */
+  /** Return a read-write signal focused via a prism; yields `undefined` when the case doesn't match. */
   narrow<B>(prism: Prism<A, B>): Signal<B | undefined>
 }
 
+/** A read-only view of a reactive value. */
 export interface ReadonlySignal<A> {
+  /** Return the current value. */
   get(): A
+  /**
+   * Subscribe to value changes.
+   * @returns An unsubscribe function.
+   */
   subscribe(fn: Subscriber<A>): () => void
+  /** Return a read-only derived signal by applying `f` to each value. */
   map<B>(f: (a: A) => B): ReadonlySignal<B>
 }
 
@@ -215,14 +228,26 @@ class NarrowedSignal<A, B> implements Signal<B | undefined> {
   }
 }
 
+/**
+ * Create a root signal with the given initial value.
+ * @param initial - The starting value.
+ */
 export function signal<A>(initial: A): Signal<A> {
   return new RootSignal(initial)
 }
 
+/**
+ * Create a signal focused on part of another signal via a lens.
+ * Reads and writes pass through the lens; the source signal is the source of truth.
+ */
 export function focusSignal<A, B>(source: Signal<A>, lens: Lens<A, B>): Signal<B> {
   return new FocusedSignal(source, lens)
 }
 
+/**
+ * Create a signal focused on a prism case of another signal.
+ * Yields `undefined` when the prism doesn't match; writes are no-ops when `b` is `undefined`.
+ */
 export function narrowSignal<A, B>(source: Signal<A>, prism: Prism<A, B>): Signal<B | undefined> {
   return new NarrowedSignal(source, prism)
 }

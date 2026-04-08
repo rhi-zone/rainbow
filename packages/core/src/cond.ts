@@ -1,7 +1,7 @@
 import type { ReadonlySignal } from './signal.ts'
 
 /**
- * Conditional signal — propagates the value when `pred` holds, undefined otherwise.
+ * Conditional signal — propagates the value when `pred` holds, `undefined` otherwise.
  *
  * Accepts both `ReadonlySignal<A>` and `ReadonlySignal<A | undefined>` so that
  * cond calls can be composed directly:
@@ -11,7 +11,7 @@ import type { ReadonlySignal } from './signal.ts'
  * When the source already carries `undefined` (from a prior `cond` or `narrow`),
  * undefined passes through unchanged — equivalent to short-circuit `&&`.
  *
- * Usage:
+ * @example
  *   const positiveCount = cond(n => n > 0, countSignal)
  *   const positiveEven  = cond(n => n % 2 === 0, positiveCount)
  */

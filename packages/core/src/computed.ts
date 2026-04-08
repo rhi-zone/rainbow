@@ -5,8 +5,11 @@ type Subscriber<A> = (value: A) => void
 /**
  * Derive a read-only signal from multiple source signals.
  *
- * Unlike signal.map (one source), computed accepts any number of sources
- * and recomputes when any of them change.
+ * Unlike `signal.map` (one source), `computed` accepts any number of sources
+ * and recomputes `fn` when any of them change.
+ *
+ * @param fn - Pure function that reads from one or more signals and returns the derived value.
+ * @param deps - Explicit dependency list; the signal re-evaluates when any dep changes.
  */
 export function computed<T>(fn: () => T, deps: ReadonlySignal<unknown>[]): ReadonlySignal<T> {
   return new ComputedSignal(fn, deps)

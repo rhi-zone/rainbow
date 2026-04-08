@@ -57,21 +57,26 @@ class ProductSignal<A, B> implements Signal<[A, B]> {
 }
 
 /**
- * Create a signal over a pair [A, B] backed by two independent signals.
+ * Create a signal over a pair `[A, B]` backed by two independent signals.
+ * Writes to the product signal are atomically batched across both children.
+ *
+ * @param a - Signal for the first element.
+ * @param b - Signal for the second element.
  */
 export function product<A, B>(a: Signal<A>, b: Signal<B>): Signal<[A, B]> {
   return new ProductSignal(a, b)
 }
 
 /**
- * Encapsulate internal state S alongside external signal A.
+ * Attach a local state `S` to an external signal `A`, returning `Signal<[S, A]>`.
  *
- * The S state starts as `init` and lives locally — not accessible
- * from outside except via the returned signal's focus(fst()) / focus(snd()).
+ * The `S` state starts as `init` and lives locally — not observable
+ * from outside except via `.focus(fst())` / `.focus(snd())`.
  *
- * Unicorn equivalent: `stateful init widget`
+ * @param init - Initial value for the local state.
+ * @param outer - The external signal to pair with.
  *
- * Usage:
+ * @example
  *   const combined = stateful("", itemsSignal)  // Signal<[string, Item[]]>
  *   const draft = combined.focus(fst())          // Signal<string>  — local
  *   const items = combined.focus(snd())          // Signal<Item[]>  — external

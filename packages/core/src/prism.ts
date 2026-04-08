@@ -10,10 +10,19 @@ export interface Prism<A, B> {
   inject(b: B): A
 }
 
+/**
+ * Construct a prism from explicit match and inject functions.
+ * @param match - Extract B from A, or return undefined if the case doesn't apply.
+ * @param inject - Construct an A from a B.
+ */
 export function prism<A, B>(match: (a: A) => B | undefined, inject: (b: B) => A): Prism<A, B> {
   return { match, inject }
 }
 
+/**
+ * Compose two prisms. If `ab` focuses on B within A, and `bc` focuses on C within B,
+ * the result focuses on C within A.
+ */
 export function composePrism<A, B, C>(ab: Prism<A, B>, bc: Prism<B, C>): Prism<A, C> {
   return {
     match: (a) => {
@@ -32,7 +41,11 @@ export function some<A>(): Prism<A | undefined, A> {
   )
 }
 
-/** Prism that always matches (isomorphism) */
+/**
+ * Prism that always matches — models an isomorphism between A and B.
+ * @param to - Convert A to B.
+ * @param from - Convert B back to A.
+ */
 export function iso<A, B>(to: (a: A) => B, from: (b: B) => A): Prism<A, B> {
   return prism(to, from)
 }

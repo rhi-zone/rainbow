@@ -17,12 +17,14 @@ export default withMermaid(defineConfig({
           { text: 'Introduction', link: '/guide/' },
           { text: 'Optics', link: '/guide/optics' },
           { text: 'Reactivity', link: '/guide/reactivity' },
+          { text: 'Rainbow Router', link: '/guide/rainbow-router' },
         ],
       },
       {
         text: 'API',
         items: [
           { text: 'API Reference', link: '/api/' },
+          { text: 'Rainbow Router', link: '/api/rainbow-router' },
         ],
       },
       {

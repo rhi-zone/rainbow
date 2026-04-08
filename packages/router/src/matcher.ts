@@ -40,15 +40,19 @@ type HasParams = { readonly params?: Record<string, ParamParser<unknown>> }
 // ---------------------------------------------------------------------------
 
 /**
- * Match a pathname against a route tree.
+ * Match a pathname against a route tree, returning a `MatchedRoute` or `null`.
  *
- * Algorithm (mirrors the Lua trie router):
- * 1. Split pathname into segments
- * 2. Walk the tree segment-by-segment
- * 3. At each node: try exact key first, then `_name` dynamic key
- * 4. Run ParamParser for dynamic segment — null return = no match → 404
- * 5. Collect `''` handlers at intermediate nodes as layout layers
- * 6. At final segment: `''` key is the leaf handler
+ * Algorithm:
+ * 1. Split pathname into segments.
+ * 2. Walk the tree segment-by-segment.
+ * 3. At each node: try the exact key first, then any `_name` dynamic key.
+ * 4. Run the `ParamParser` for dynamic segments — a `null` return means no match (→ 404).
+ * 5. Collect `''` handlers at intermediate nodes as layout layers.
+ * 6. At the final segment: the `''` key is the leaf handler.
+ *
+ * @param tree - The route tree to match against.
+ * @param pathname - The URL pathname to match (e.g. `/posts/42`).
+ * @returns The matched route with layouts, leaf config, and parsed params; or `null` if unmatched.
  */
 export function match(tree: RouteTree, pathname: string): MatchedRoute | null {
   const segments = pathname.split('/').filter(Boolean)
