@@ -3,6 +3,7 @@ import {
   notAsked, loading, failure, success,
   isNotAsked, isLoading, isFailure, isSuccess,
   map, mapError, chain, getOrElse, fold,
+  fromPromise, fromAsync,
 } from './async-data.ts'
 
 describe('constructors', () => {
@@ -70,4 +71,88 @@ describe('fold', () => {
   test('loading',  () => expect(fold(loading,  cases)).toBe('loading'))
   test('failure',  () => expect(fold(failure('x'), cases)).toBe('fail:x'))
   test('success',  () => expect(fold(success(42), cases)).toBe('ok:42'))
+})
+
+// ---------------------------------------------------------------------------
+// Signal adapters
+// ---------------------------------------------------------------------------
+
+import { signal } from './signal.ts'
+
+describe('fromPromise', () => {
+  test('starts in loading', () => {
+    const s = fromPromise(new Promise(() => {}))
+    expect(s.get()).toEqual(loading)
+  })
+
+  test('transitions to success when promise resolves', async () => {
+    const s = fromPromise(Promise.resolve(42))
+    await Promise.resolve() // flush microtask
+    expect(s.get()).toEqual(success(42))
+  })
+
+  test('transitions to failure when promise rejects', async () => {
+    const s = fromPromise(Promise.reject(new Error('oops')))
+    await Promise.resolve()
+    expect(s.get()).toEqual(failure(new Error('oops')))
+  })
+
+  test('notifies subscribers on resolve', async () => {
+    const s = fromPromise(Promise.resolve('done'))
+    const values: unknown[] = []
+    s.subscribe(v => values.push(v))
+    await Promise.resolve()
+    expect(values).toEqual([success('done')])
+  })
+})
+
+describe('fromAsync', () => {
+  test('starts in loading and resolves', async () => {
+    const deps = signal('query')
+    const [s, dispose] = fromAsync(deps, (q) => Promise.resolve(`result:${q}`))
+    expect(s.get()).toEqual(loading)
+    await Promise.resolve()
+    expect(s.get()).toEqual(success('result:query'))
+    dispose()
+  })
+
+  test('re-runs when deps change', async () => {
+    const deps = signal('a')
+    const [s, dispose] = fromAsync(deps, (q) => Promise.resolve(`r:${q}`))
+    await Promise.resolve()
+    expect(s.get()).toEqual(success('r:a'))
+    deps.set('b')
+    expect(s.get()).toEqual(loading) // reset to loading immediately
+    await Promise.resolve()
+    expect(s.get()).toEqual(success('r:b'))
+    dispose()
+  })
+
+  test('aborts previous request when deps change', async () => {
+    const deps = signal('a')
+    const aborted: boolean[] = []
+    const [s, dispose] = fromAsync(deps, (_q, abort) => {
+      abort.addEventListener('abort', () => aborted.push(true))
+      return new Promise(() => {}) // never resolves
+    })
+    deps.set('b') // triggers abort of first request
+    expect(aborted).toEqual([true])
+    dispose()
+    expect(s.get()).toEqual(loading)
+  })
+
+  test('dispose aborts in-flight request and unsubscribes', async () => {
+    const deps = signal('q')
+    let notified = 0
+    const [s, dispose] = fromAsync(deps, () => Promise.resolve(1))
+    s.subscribe(() => notified++)
+    await Promise.resolve()
+    dispose()
+    deps.set('q2') // should not trigger a new run
+    await Promise.resolve()
+    const after = notified
+    deps.set('q3')
+    await Promise.resolve()
+    expect(notified).toBe(after) // no new notifications after dispose
+  })
 })

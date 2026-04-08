@@ -22,6 +22,7 @@ import {
   concat,
   eachKeyed,
   template,
+  register,
   on,
   bindInput,
   bindSelect,
@@ -678,6 +679,25 @@ describe("templ", () => {
       () => {},
     )
     expect(() => w(s as unknown as Parameters<typeof w>[0])).toThrow(/ref "missing" not found/)
+  })
+})
+
+// ── register ──────────────────────────────────────────────────────────────────
+
+describe("register", () => {
+  it("calls the registered cleanup on unmount", () => {
+    const root = makeRoot()
+    const s = signal("x")
+    let disposed = false
+    const w: Widget<string> = () => {
+      const node = document.createElement("div")
+      register(() => { disposed = true })
+      return { _tag: "div", node }
+    }
+    const unmount = mount(w, s, root)
+    expect(disposed).toBe(false)
+    unmount()
+    expect(disposed).toBe(true)
   })
 })
 

@@ -103,6 +103,19 @@ export function subscribe<T>(s: Subscribable<T>, fn: (value: T) => void): void {
   _register(s.subscribe(fn))
 }
 
+/**
+ * Register an arbitrary cleanup function in the current widget call context.
+ * Called on unmount alongside subscription cleanups. Use for event listeners,
+ * timers, or `fromAsync` dispose functions.
+ *
+ * @example
+ * const [data, dispose] = fromAsync(querySignal, fetch)
+ * register(dispose)
+ */
+export function register(fn: () => void): void {
+  _register(fn)
+}
+
 // ── mount ─────────────────────────────────────────────────────────────────────
 
 /**

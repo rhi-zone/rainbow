@@ -27,6 +27,8 @@ export {
   chain as chainAsyncData,
   getOrElse,
   fold,
+  fromPromise,
+  fromAsync,
 } from './async-data.ts'
 
 // Vue adapter (import from 'rainbow/vue' to avoid pulling in Vue as a dependency)

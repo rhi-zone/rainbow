@@ -1,3 +1,6 @@
+import { signal } from './signal.ts'
+import type { ReadonlySignal } from './signal.ts'
+
 /**
  * AsyncData<T, E> — the type of an asynchronous value.
  *
@@ -116,4 +119,73 @@ export const fold = <T, E, R>(
     case 'failure':  return cases.failure(ad.error)
     case 'success':  return cases.success(ad.value)
   }
+}
+
+// ---------------------------------------------------------------------------
+// Signal adapters
+// ---------------------------------------------------------------------------
+
+/**
+ * Wrap an already-in-flight promise as a `ReadonlySignal<AsyncData<T, E>>`.
+ * Starts in `loading`; transitions to `success` or `failure` when the promise
+ * settles. The signal is read-only — it can only be updated by the promise.
+ *
+ * @example
+ * const user = fromPromise(fetchUser(id))
+ * // user.get() === loading initially, then success({ ... }) or failure(e)
+ */
+export function fromPromise<T, E = unknown>(
+  promise: Promise<T>,
+): ReadonlySignal<AsyncData<T, E>> {
+  const s = signal<AsyncData<T, E>>(loading)
+  promise.then(
+    (v) => s.set(success(v)),
+    (e) => s.set(failure(e as E)),
+  )
+  return s
+}
+
+/**
+ * Derive a `ReadonlySignal<AsyncData<T, E>>` that re-runs `fn` whenever
+ * `deps` changes. Each new run receives a fresh `AbortSignal`; the previous
+ * in-flight request is aborted before the next one starts. Starts in
+ * `loading` immediately.
+ *
+ * Returns `[signal, dispose]`. Call `dispose()` when done — it aborts any
+ * in-flight request and unsubscribes from `deps`. In a widget context, pass
+ * `dispose` to `register()` so it is called automatically on unmount.
+ *
+ * @example
+ * const [results, dispose] = fromAsync(querySignal, (q, abort) =>
+ *   fetch(`/api/search?q=${q}`, { signal: abort }).then(r => r.json())
+ * )
+ * register(dispose)  // clean up when widget unmounts
+ */
+export function fromAsync<D, T, E = unknown>(
+  deps: ReadonlySignal<D>,
+  fn: (deps: D, abort: AbortSignal) => Promise<T>,
+): [ReadonlySignal<AsyncData<T, E>>, dispose: () => void] {
+  const s = signal<AsyncData<T, E>>(loading)
+  let controller = new AbortController()
+
+  const run = (d: D) => {
+    controller.abort()
+    controller = new AbortController()
+    s.set(loading)
+    const { signal: abortSignal } = controller
+    fn(d, abortSignal).then(
+      (v) => { if (!abortSignal.aborted) s.set(success(v)) },
+      (e) => { if (!abortSignal.aborted) s.set(failure(e as E)) },
+    )
+  }
+
+  run(deps.get())
+  const unsub = deps.subscribe(run)
+
+  const dispose = () => {
+    controller.abort()
+    unsub()
+  }
+
+  return [s, dispose]
 }
