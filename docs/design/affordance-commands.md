@@ -114,17 +114,9 @@ Work tracked separately but noting here for context:
 - Scoring adapter system + `defaultScorer` (specificity + frecency)
 - `ContextMenu`: 7-item default with embedded search (shifts which 7 are visible, never grows list), hover-reveal "N more" at bottom
 
-### Remaining
-- `RadialMenu` component with **bilateral text layout**:
-  ```
-       AAAA    BBBB
-    CCCC          DDDD
-    EEEE          FFFF
-       GGGG    HHHH
-  ```
-  Labels readable, 8 segments, direction becomes muscle memory for repeated use. Opt-in — not a default. Best for spatial/gestural affordances where direction carries meaning (canvas tools, game radials).
-
-- Rainbow integration: reactive `getContext()` wrapper (see above)
+### Done (continued April 2026)
+- `RadialMenu` (`keybinds-radial-menu`) — SVG-based, bilateral text layout, 8 slots, arrow key + mouse navigation, fires `command` CustomEvent. `openAt({ x, y })` / `close()` API.
+- Rainbow integration: `keybindsContext<S>(keybindsFn, commands, state, buildContext)` in `packages/ui/src/keybinds.ts`. Dependency-injected `keybinds` fn to avoid hard dep. `bindingsStoreSignal(store)` wraps a `BindingsStore` EventTarget in a `ReadonlySignal`.
 
 ### Philosophy: sneaky Miller's Law enforcement
 The ContextMenu component enforces 7-item default not as a hard limit but as the *out-of-the-box experience*. Consumers who don't think about it get Miller's Law compliance for free. Opting out (raising `maxVisible`) requires a deliberate decision. Bad UX requires conscious effort; good UX is the default.
@@ -147,10 +139,8 @@ Context menus are vertical ribbons. Same failure mode, same fix: genuine context
 
 Written and pushed (April 2026):
 - `docs/affordance-types.md` — full affordance taxonomy
-- `docs/affordance-surfaces.md` — ribbon analysis, Miller's Law, filtering vs removal, spatial semantics
-- `docs/interaction-graph.md` — added: affordances-are-not-commands, Miller's Law as hard constraint
+- `docs/affordance-surfaces.md` — ribbon analysis, Miller's Law, filtering vs removal, spatial semantics, Fitts's Law + radial menus, adaptive layout (stability earned per-item, pinning model)
+- `docs/interaction-graph.md` — added: affordances-are-not-commands, Miller's Law as hard constraint, "what does the user most likely want to do next" (recency, specificity, workflow position, selection shape)
 
 Still to write:
-- `affordance-surfaces.md` — add Fitts's Law + radial menus section
-- Design page for rainbow-commands once the package has a concrete design
-- `interaction-graph.md` — "what does the user most likely want to do next" deserves its own developed section
+- Design page for `rainbow-commands` once the package has a concrete design
