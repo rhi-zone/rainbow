@@ -91,3 +91,43 @@ See design doc §2 and existing "async" open question above.
 `defineElement(tag, widget, defaults, { shadow, attrs, styles })`.
 Shadow DOM opt-in, attribute type coercion, JS property accessors, adopted
 stylesheets. Lives in rainbow-ui. See design doc §1.
+
+### `match` combinator — discriminated union rendering (unblocked)
+
+Discovered via `examples/contacts/src/machine.ts` state machine example.
+
+The current pattern for rendering an N-state machine:
+- N prism declarations via `tagged()`
+- N `narrow(widget, prism)` calls wrapped in `stack()`
+- N+1 wrapper divs in the DOM
+- No compile-time exhaustiveness check
+
+Proposed signature:
+```ts
+match<S, K extends keyof S & string>(
+  key: K,
+  cases: { [T in S[K] & string]: Widget<Extract<S, Record<K, T>>> },
+): Widget<S, DivEl>
+```
+
+This would:
+- Produce a single container div (not N narrow + 1 stack div)
+- Enforce exhaustiveness at compile time (missing variant = type error)
+- Eliminate all `tagged()` and `narrow()` declarations at call sites
+- Naturally generalise `fold` (AsyncData) to arbitrary tagged unions
+
+Lives in `rainbow-ui/widget.ts`. Blocked on nothing.
+
+Also needed: `taggedIn<A, K extends keyof A, V extends A[K]>(key: K, values: V[])` — a prism
+matching any of several tag values, for the shared-data-across-states pattern
+(e.g. `editing | error` both carrying `draft`). Lives in `packages/core/src/prism.ts`.
+
+### `subscribeNow` helper (small, unblocked)
+
+Inside `template` bind fns, the pattern of setting initial DOM values from `s.get()`
+and then subscribing for updates repeats everywhere. A helper:
+```ts
+subscribeNow<T>(s: Signal<T>, fn: (v: T) => void): void
+// equivalent to: fn(s.get()); subscribe(s, fn)
+```
+would halve the lines in every template bind fn. Lives in `widget.ts`.

@@ -1,0 +1,9 @@
+{
+  "name": "@rhi-zone/rainbow-example-async-gallery",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@rhi-zone/rainbow": "workspace:*",
+    "@rhi-zone/rainbow-ui": "workspace:*"
+  }
+}
