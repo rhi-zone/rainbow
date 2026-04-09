@@ -9,39 +9,25 @@ import {
   signal,
   fromAsync,
   fold,
-  tagged,
-  field,
-  composeLens,
   type Signal,
 } from "@rhi-zone/rainbow"
 import {
-  mount,
-  on,
   subscribe,
   register,
-  stack,
-  narrow,
-  eachKeyed,
-  show,
-  dynamic,
-  focus,
-  inputWidget,
-  textareaWidget,
+  watchAll,
+  bindShow,
+  bindText,
+  bindClass,
   type Widget,
 } from "@rhi-zone/rainbow-ui/widget"
-import { createForm, isDirty, type FormState } from "@rhi-zone/rainbow-ui/form-state"
+import { createForm } from "@rhi-zone/rainbow-ui/form-state"
 import { defineElement } from "@rhi-zone/rainbow-ui/elements"
 
 import {
   contacts,
   panel,
-  appState,
   searchQuery,
   sortBy,
-  contactsMap,
-  editingPrism,
-  viewingPrism,
-  creatingPrism,
   viewContact,
   startEdit,
   startCreate,
@@ -52,7 +38,6 @@ import {
   updateContact,
   getFilteredContacts,
   type Contact,
-  type PanelMode,
 } from "./state.ts"
 
 // ── Fake network layer ────────────────────────────────────────────────────────
@@ -99,14 +84,11 @@ const contactCardWidget: Widget<ContactCardProps> = (s) => {
   const emailEl = document.createElement("span")
   const phoneEl = document.createElement("span")
 
-  // FRICTION: Every individual text content update is its own subscribe line.
-  // With 3 fields: 3 subscribe calls, each doing the same el.textContent = pattern.
-  // A bindText(el, signal) helper would collapse each to one line.
-  subscribe(s.map((p) => p.name),  (v) => { nameEl.textContent = v })
-  subscribe(s.map((p) => p.email), (v) => { emailEl.textContent = v })
-  subscribe(s.map((p) => p.phone), (v) => { phoneEl.textContent = v })
+  bindText(nameEl,  s.map((p) => p.name))
+  bindText(emailEl, s.map((p) => p.email))
+  bindText(phoneEl, s.map((p) => p.phone))
+  bindClass(root, "selected", s.map((p) => p.selected))
   subscribe(s.map((p) => p.selected), (sel) => {
-    root.classList.toggle("selected", sel)
     root.setAttribute("aria-selected", String(sel))
   })
 
@@ -206,17 +188,7 @@ function renderContactList(container: HTMLElement): void {
     }
   }
 
-  // FRICTION: Subscribing to multiple independent signals and rerunning the
-  // same function requires either product() + one subscribe, or multiple
-  // subscribe calls. Here we need contacts + panel + searchQuery + sortBy.
-  // There is no computed() shorthand that can also trigger DOM side-effects —
-  // computed() returns a ReadonlySignal, not a void effect. We need a
-  // separate effect() or watch() primitive for side-effectful derived logic.
-  subscribe(contacts, renderList)
-  subscribe(panel, renderList)
-  subscribe(searchQuery, renderList)
-  subscribe(sortBy, renderList)
-  renderList()
+  watchAll([contacts, panel, searchQuery, sortBy], renderList)
 
   const addBtn = document.createElement("button")
   addBtn.textContent = "+ New Contact"
@@ -233,10 +205,9 @@ const defaultDraft: ContactDraft = { name: "", email: "", phone: "", notes: "" }
 
 const {
   state: editFormState,
-  bind: bindField,
   handleSubmit,
-  reset: resetForm,
   setErrors,
+  field: formField,
 } = createForm<ContactDraft>({
   defaults: defaultDraft,
   validate: ({ name, email }) => {
@@ -247,13 +218,6 @@ const {
     return Object.keys(fieldErrors).length > 0 ? { fieldErrors } : {}
   },
 })
-
-// FRICTION: createForm returns a fixed Signal<FormState<T>>. When the panel
-// switches between contacts (or from edit to create), the form's default
-// values need to change. But createForm captures `defaults` at construction
-// time — there is no `reinitialize(newDefaults)` method. Callers must
-// manually update the signal with createFormState(newDraft) and re-call reset().
-// This means form re-initialization is an undocumented manual process.
 
 // Sync panel changes into the edit form
 subscribe(panel, (p) => {
@@ -269,63 +233,6 @@ subscribe(panel, (p) => {
     })
   }
 })
-
-// ── Reusable field renderer ───────────────────────────────────────────────────
-
-// FRICTION: There is no "form field" combinator that wraps label + input +
-// error display into one Widget<FormState<T>>. Every field in every form
-// in the codebase manually builds: a <label>, the bound input widget, an
-// error <span>, and a subscribe block to show/hide the error. This is the
-// single most-repeated pattern in any form-heavy app.
-function renderFormField(
-  container: HTMLElement,
-  state: Signal<FormState<ContactDraft>>,
-  key: keyof ContactDraft,
-  label: string,
-  inputType: "text" | "email" | "tel" | "textarea" = "text",
-): void {
-  const wrapper = document.createElement("div")
-  wrapper.className = "form-field"
-
-  const labelEl = document.createElement("label")
-  labelEl.textContent = label
-  wrapper.appendChild(labelEl)
-
-  if (inputType === "textarea") {
-    const widget = bindField(key, textareaWidget({ rows: 3 }))
-    const el = widget(state)
-    wrapper.appendChild(el.node)
-  } else {
-    const widget = bindField(key, inputWidget({ type: inputType }))
-    const el = widget(state)
-    wrapper.appendChild(el.node)
-    // FRICTION: touched tracking requires attaching a focusout listener to the
-    // raw input node. But after bind() the node is inside an El<"input", ...>
-    // wrapper. To attach the listener you must call widget(state) to get the
-    // El, then access .node — there is no lifecycle hook or composable
-    // "mark touched on focusout" behavior built into inputWidget or bindField.
-    el.node.addEventListener("focusout", () => {
-      const s = state.get()
-      state.set({ ...s, touched: { ...s.touched, [key]: true } })
-    })
-  }
-
-  const errorEl = document.createElement("span")
-  errorEl.className = "field-error"
-  errorEl.style.display = "none"
-  wrapper.appendChild(errorEl)
-
-  // FRICTION: Identical 5-line subscribe block for each field error display.
-  // In a form with 4 fields = 4 copies of this block. An inline field()
-  // widget that accepted `{ label, errorDisplay: true }` would eliminate this.
-  subscribe(state, (s) => {
-    const showError = (s.touched[key] === true || s.submitCount > 0) && (s.fieldErrors[key]?.length ?? 0) > 0
-    errorEl.style.display = showError ? "" : "none"
-    errorEl.textContent = s.fieldErrors[key]?.[0] ?? ""
-  })
-
-  container.appendChild(wrapper)
-}
 
 // ── Save async signal ─────────────────────────────────────────────────────────
 
@@ -393,10 +300,10 @@ function renderDetailPanel(container: HTMLElement): void {
   const formEl = document.createElement("form")
   formEl.className = "contact-form"
 
-  renderFormField(formEl, editFormState, "name",  "Name",  "text")
-  renderFormField(formEl, editFormState, "email", "Email", "email")
-  renderFormField(formEl, editFormState, "phone", "Phone", "tel")
-  renderFormField(formEl, editFormState, "notes", "Notes", "textarea")
+  formEl.appendChild(formField("name",  "Name",  { type: "text" }))
+  formEl.appendChild(formField("email", "Email", { type: "email" }))
+  formEl.appendChild(formField("phone", "Phone", { type: "tel" }))
+  formEl.appendChild(formField("notes", "Notes", { rows: 3 }))
 
   // Form-level error display
   const formErrorEl = document.createElement("div")
@@ -482,14 +389,8 @@ function renderDetailPanel(container: HTMLElement): void {
   editPanel.appendChild(formEl)
 
   // Show/hide panels based on mode
-  // FRICTION: Panel visibility logic is entirely manual — two subscribe calls
-  // (one for viewPanel, one for editPanel) that toggle style.display. The
-  // `show` widget combinator could handle this, but it's a Widget<T, DivEl>
-  // combinator, not a utility for raw HTMLElements. There is no showElement(el, predicate, signal) helper.
-  subscribe(panel, (p) => {
-    viewPanel.style.display = p.mode === "viewing"  ? "" : "none"
-    editPanel.style.display = (p.mode === "editing" || p.mode === "creating") ? "" : "none"
-  })
+  bindShow(viewPanel, panel.map((p) => p.mode === "viewing"))
+  bindShow(editPanel, panel.map((p) => p.mode === "editing" || p.mode === "creating"))
 
   container.appendChild(viewPanel)
   container.appendChild(editPanel)
