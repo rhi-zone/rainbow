@@ -5,9 +5,9 @@
  * All tests share a single <div id="root"> that is cleared between tests.
  */
 
-import { describe, it, expect, beforeEach } from "vitest"
+import { describe, it, expect, beforeEach, vi } from "vitest"
 import { signal, lens, prism, iso, index, field, product, notAsked, loading, failure, success } from "@rhi-zone/rainbow"
-import type { Signal } from "@rhi-zone/rainbow"
+import type { Signal, ReadonlySignal } from "@rhi-zone/rainbow"
 import type { Widget } from "./widget.js"
 import {
   mount,
@@ -88,6 +88,20 @@ describe("mount", () => {
     expect(root.childElementCount).toBe(0)
     s.set("world")
     expect(subCount).toBe(0) // subscription cleaned up
+  })
+
+  it("accepts ReadonlySignal", () => {
+    const base = signal(42)
+    const derived: ReadonlySignal<number> = base.map(x => x * 2)
+    const w: Widget<number, h.SpanEl> = (s) => {
+      const el = document.createElement("span")
+      el.textContent = String(s.get())
+      return { _tag: "span", node: el }
+    }
+    const root = makeRoot()
+    mount(w, derived, root)
+    expect(root.querySelector("span")!.textContent).toBe("84")
+    root.remove()
   })
 })
 
@@ -488,12 +502,12 @@ function rowWidget(s: Signal<Row>): h.SpanEl {
 }
 
 describe("eachKeyed", () => {
-  const w = eachKeyed<number, Row>(rowWidget, (r) => r.id)
+  const rowKey = (r: Row) => String(r.id)
 
-  it("renders all items initially", () => {
+  it("renders initial list", () => {
     const root = makeRoot()
     const s = signal<Row[]>([{ id: 1, label: "a" }, { id: 2, label: "b" }])
-    const unmount = mount(w, s, root)
+    const unmount = mount((sig) => eachKeyed(sig, rowKey, rowWidget), s, root)
     const spans = root.querySelectorAll("span")
     expect(spans).toHaveLength(2)
     expect(spans[0]?.textContent).toBe("a")
@@ -501,10 +515,55 @@ describe("eachKeyed", () => {
     cleanup(root, unmount)
   })
 
-  it("preserves DOM node identity on reorder", () => {
+  it("adds item when array grows", () => {
+    const root = makeRoot()
+    const s = signal<Row[]>([{ id: 1, label: "a" }])
+    let creates = 0
+    const countingWidget = (sig: Signal<Row>) => { creates++; return rowWidget(sig) }
+    const unmount = mount((sig) => eachKeyed(sig, rowKey, countingWidget), s, root)
+    const before = creates
+    s.set([{ id: 1, label: "a" }, { id: 2, label: "b" }])
+    expect(creates).toBe(before + 1)  // only one new widget created
+    expect(root.querySelectorAll("span")).toHaveLength(2)
+    cleanup(root, unmount)
+  })
+
+  it("removes item when array shrinks — cleanup runs", () => {
+    const root = makeRoot()
+    const s = signal<Row[]>([{ id: 1, label: "a" }, { id: 2, label: "b" }, { id: 3, label: "c" }])
+    const cleanupFn = vi.fn()
+    const trackingWidget = (sig: Signal<Row>) => {
+      register(cleanupFn)
+      return rowWidget(sig)
+    }
+    const unmount = mount((sig) => eachKeyed(sig, rowKey, trackingWidget), s, root)
+    s.set([{ id: 1, label: "a" }, { id: 3, label: "c" }])
+    // cleanupFn called once for removed id=2
+    expect(cleanupFn).toHaveBeenCalledTimes(1)
+    const spans = root.querySelectorAll("span")
+    expect(spans).toHaveLength(2)
+    expect(spans[0]?.dataset["id"]).toBe("1")
+    expect(spans[1]?.dataset["id"]).toBe("3")
+    cleanup(root, unmount)
+  })
+
+  it("updates item in-place without remounting", () => {
     const root = makeRoot()
     const s = signal<Row[]>([{ id: 1, label: "a" }, { id: 2, label: "b" }])
-    const unmount = mount(w, s, root)
+    let creates = 0
+    const countingWidget = (sig: Signal<Row>) => { creates++; return rowWidget(sig) }
+    const unmount = mount((sig) => eachKeyed(sig, rowKey, countingWidget), s, root)
+    const before = creates
+    s.set([{ id: 1, label: "X" }, { id: 2, label: "b" }])
+    expect(creates).toBe(before)  // no new widgets created
+    expect(root.querySelector("[data-id='1']")?.textContent).toBe("X")
+    cleanup(root, unmount)
+  })
+
+  it("reorders items correctly in the DOM", () => {
+    const root = makeRoot()
+    const s = signal<Row[]>([{ id: 1, label: "a" }, { id: 2, label: "b" }])
+    const unmount = mount((sig) => eachKeyed(sig, rowKey, rowWidget), s, root)
     const nodeBefore = root.querySelector("[data-id='1']")
     s.set([{ id: 2, label: "b" }, { id: 1, label: "a" }])
     const nodeAfter = root.querySelector("[data-id='1']")
@@ -515,60 +574,15 @@ describe("eachKeyed", () => {
     cleanup(root, unmount)
   })
 
-  it("updates item value in place without recreating the node", () => {
+  it("item signal write-back updates parent signal (writable Signal)", () => {
     const root = makeRoot()
-    const s = signal<Row[]>([{ id: 1, label: "a" }, { id: 2, label: "b" }])
-    let creates = 0
-    const countingW = eachKeyed<number, Row>((sig) => {
-      creates++
-      return rowWidget(sig)
-    }, (r) => r.id)
-    const unmount = mount(countingW, s, root)
-    const before = creates
-    s.set([{ id: 1, label: "X" }, { id: 2, label: "b" }])
-    expect(creates).toBe(before)  // no new widgets created
-    expect(root.querySelector("[data-id='1']")?.textContent).toBe("X")
-    cleanup(root, unmount)
-  })
-
-  it("adds new items without recreating existing ones", () => {
-    const root = makeRoot()
-    const s = signal<Row[]>([{ id: 1, label: "a" }])
-    let creates = 0
-    const countingW = eachKeyed<number, Row>((sig) => {
-      creates++
-      return rowWidget(sig)
-    }, (r) => r.id)
-    const unmount = mount(countingW, s, root)
-    const before = creates
-    s.set([{ id: 1, label: "a" }, { id: 2, label: "b" }])
-    expect(creates).toBe(before + 1)  // only one new widget
-    expect(root.querySelectorAll("span")).toHaveLength(2)
-    cleanup(root, unmount)
-  })
-
-  it("removes items and calls cleanup", () => {
-    const root = makeRoot()
-    const s = signal<Row[]>([{ id: 1, label: "a" }, { id: 2, label: "b" }, { id: 3, label: "c" }])
-    const unmount = mount(w, s, root)
-    s.set([{ id: 1, label: "a" }, { id: 3, label: "c" }])
-    const spans = root.querySelectorAll("span")
-    expect(spans).toHaveLength(2)
-    expect(spans[0]?.dataset["id"]).toBe("1")
-    expect(spans[1]?.dataset["id"]).toBe("3")
-    cleanup(root, unmount)
-  })
-
-  it("write-back: item widget write propagates to parent list signal", () => {
-    const root = makeRoot()
-    // Single item so capturedSignal unambiguously belongs to id=1
     const s = signal<Row[]>([{ id: 1, label: "a" }])
     let capturedSignal: Signal<Row> | undefined
-    const capturingW = eachKeyed<number, Row>((sig) => {
+    const capturingWidget = (sig: Signal<Row>) => {
       capturedSignal = sig
       return rowWidget(sig)
-    }, (r) => r.id)
-    const unmount = mount(capturingW, s, root)
+    }
+    const unmount = mount((sig) => eachKeyed(sig, rowKey, capturingWidget), s, root)
     capturedSignal!.set({ id: 1, label: "written-back" })
     expect(s.get()[0]?.label).toBe("written-back")
     cleanup(root, unmount)
@@ -580,10 +594,21 @@ describe("eachKeyed", () => {
     let listSets = 0
     const origSet = s.set.bind(s)
     s.set = (v) => { listSets++; origSet(v) }
-    const unmount = mount(w, s, root)
+    const unmount = mount((sig) => eachKeyed(sig, rowKey, rowWidget), s, root)
     const initialSets = listSets
     s.set([{ id: 1, label: "from-parent" }])
     expect(listSets).toBe(initialSets + 1)  // only one set, no cycle
+    cleanup(root, unmount)
+  })
+
+  it("{ container: 'ul' } option produces a <ul> wrapper", () => {
+    const root = makeRoot()
+    const s = signal<Row[]>([{ id: 1, label: "a" }])
+    const unmount = mount(
+      (sig) => eachKeyed(sig, rowKey, rowWidget, { container: "ul" }),
+      s, root,
+    )
+    expect(root.querySelector("ul")).not.toBeNull()
     cleanup(root, unmount)
   })
 })

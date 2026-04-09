@@ -3,7 +3,7 @@ import {
   notAsked, loading, failure, success,
   isNotAsked, isLoading, isFailure, isSuccess,
   map, mapError, chain, getOrElse, fold,
-  fromPromise, fromAsync,
+  fromPromise, fromAsync, fromAsyncImperative, toNextValue,
 } from './async-data.ts'
 
 describe('constructors', () => {
@@ -154,5 +154,92 @@ describe('fromAsync', () => {
     deps.set('q3')
     await Promise.resolve()
     expect(notified).toBe(after) // no new notifications after dispose
+  })
+})
+
+describe('fromAsyncImperative', () => {
+  test('starts as notAsked', () => {
+    const { result } = fromAsyncImperative((_input: string, _signal: AbortSignal) => Promise.resolve(1))
+    expect(result.get()).toEqual(notAsked)
+  })
+
+  test('transitions to loading when triggered', () => {
+    const { result, trigger, dispose } = fromAsyncImperative((_input: string) => new Promise(() => {}))
+    trigger('x')
+    expect(result.get()).toEqual(loading)
+    dispose()
+  })
+
+  test('transitions to success on resolution', async () => {
+    const { result, trigger, dispose } = fromAsyncImperative((input: string) => Promise.resolve(`ok:${input}`))
+    trigger('hello')
+    await Promise.resolve()
+    expect(result.get()).toEqual(success('ok:hello'))
+    dispose()
+  })
+
+  test('transitions to failure on rejection', async () => {
+    const { result, trigger, dispose } = fromAsyncImperative((_input: string) => Promise.reject(new Error('bad')))
+    trigger('hello')
+    await Promise.resolve()
+    expect(result.get()).toEqual(failure(new Error('bad')))
+    dispose()
+  })
+
+  test('aborts previous call when triggered again while in-flight', async () => {
+    const aborted: boolean[] = []
+    const { result, trigger, dispose } = fromAsyncImperative((_input: string, signal: AbortSignal) => {
+      signal.addEventListener('abort', () => aborted.push(true))
+      return new Promise(() => {}) // never resolves
+    })
+    trigger('first')
+    trigger('second') // aborts 'first'
+    expect(aborted).toEqual([true])
+    dispose()
+    expect(result.get()).toEqual(loading)
+  })
+
+  test('dispose aborts in-flight and prevents further updates', async () => {
+    let notified = 0
+    const { result, trigger, dispose } = fromAsyncImperative((_input: string) => Promise.resolve(42))
+    result.subscribe(() => notified++)
+    trigger('x')
+    dispose()
+    await Promise.resolve()
+    expect(notified).toBe(1) // only the loading transition
+  })
+})
+
+describe('toNextValue', () => {
+  test('resolves immediately if current value matches predicate', async () => {
+    const s = signal(success<number, never>(5))
+    const result = await toNextValue(s, isSuccess)
+    expect(result).toEqual(success(5))
+  })
+
+  test('resolves immediately with no predicate', async () => {
+    const s = signal(42)
+    const result = await toNextValue(s)
+    expect(result).toBe(42)
+  })
+
+  test('resolves on next matching update', async () => {
+    const s = signal<number>(0)
+    const p = toNextValue(s, v => v > 10)
+    s.set(5)
+    s.set(15)
+    const result = await p
+    expect(result).toBe(15)
+  })
+
+  test('only resolves once (unsubscribes after first match)', async () => {
+    const s = signal<number>(0)
+    const p = toNextValue(s, v => v > 10)
+    let resolveCount = 0
+    p.then(() => resolveCount++)
+    s.set(20)
+    s.set(30)
+    await Promise.resolve()
+    expect(resolveCount).toBe(1)
   })
 })

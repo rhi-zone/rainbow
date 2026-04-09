@@ -1,5 +1,5 @@
 import { signal } from './signal.ts'
-import type { ReadonlySignal } from './signal.ts'
+import type { Signal, ReadonlySignal } from './signal.ts'
 
 /**
  * AsyncData<T, E> — the type of an asynchronous value.
@@ -188,4 +188,86 @@ export function fromAsync<D, T, E = unknown>(
   }
 
   return [s, dispose]
+}
+
+/**
+ * Create an imperatively-triggered async operation.
+ *
+ * Unlike `fromAsync`, this is not driven by a signal — you call `trigger(input)`
+ * manually (e.g. from a button handler). Concurrent calls abort the previous
+ * in-flight request via AbortSignal.
+ *
+ * @returns
+ *   `result`  — ReadonlySignal<AsyncData<T, E>> starting as notAsked()
+ *   `trigger` — Call with input to start the async operation
+ *   `dispose` — Cancel any in-flight request and stop updates
+ *
+ * @example
+ *   const { result, trigger, dispose } = fromAsyncImperative(
+ *     async (contact: Contact, signal) => await saveContact(contact, signal)
+ *   )
+ *   on(saveBtn, "click", () => trigger(formState.get().values))
+ *   register(dispose)
+ */
+export function fromAsyncImperative<I, T, E = unknown>(
+  fn: (input: I, signal: AbortSignal) => Promise<T>,
+): {
+  readonly result: ReadonlySignal<AsyncData<T, E>>
+  readonly trigger: (input: I) => void
+  readonly dispose: () => void
+} {
+  const s = signal<AsyncData<T, E>>(notAsked)
+  let controller: AbortController | null = null
+  let disposed = false
+
+  const trigger = (input: I): void => {
+    if (disposed) return
+    if (controller !== null) controller.abort()
+    controller = new AbortController()
+    s.set(loading)
+    const { signal: abortSignal } = controller
+    fn(input, abortSignal).then(
+      (v) => { if (!abortSignal.aborted && !disposed) s.set(success(v)) },
+      (e) => { if (!abortSignal.aborted && !disposed) s.set(failure(e as E)) },
+    )
+  }
+
+  const dispose = (): void => {
+    disposed = true
+    if (controller !== null) {
+      controller.abort()
+      controller = null
+    }
+  }
+
+  return { result: s, trigger, dispose }
+}
+
+/**
+ * Returns a Promise that resolves with the next value from `s` that satisfies
+ * `predicate`. If the current value already satisfies it, resolves immediately.
+ *
+ * Useful for bridging signal-based async results back to imperative await:
+ *
+ * @example
+ *   trigger(contact)
+ *   const result = await toNextValue(saveResult, r => !isLoading(r))
+ *   if (isSuccess(result)) ...
+ */
+export function toNextValue<T>(
+  s: Signal<T> | ReadonlySignal<T>,
+  predicate?: (v: T) => boolean,
+): Promise<T> {
+  const current = s.get()
+  if (predicate === undefined || predicate(current)) {
+    return Promise.resolve(current)
+  }
+  return new Promise<T>((resolve) => {
+    const unsub = s.subscribe((v) => {
+      if (predicate(v)) {
+        unsub()
+        resolve(v)
+      }
+    })
+  })
 }

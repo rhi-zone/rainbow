@@ -65,7 +65,7 @@ import type {
  * @typeParam T - The signal value type
  * @typeParam E - The element type produced (defaults to FlowContent)
  */
-export type Widget<T, E extends AnyEl = FlowContent> = (signal: Signal<T>) => E
+export type Widget<T, E extends AnyEl = FlowContent> = (signal: Signal<T> | ReadonlySignal<T>) => E
 
 // ── Cleanup context ───────────────────────────────────────────────────────────
 
@@ -129,7 +129,7 @@ export function register(fn: () => void): void {
  */
 export function mount<T, E extends AnyEl>(
   widget: Widget<T, E>,
-  signal: Signal<T>,
+  signal: Signal<T> | ReadonlySignal<T>,
   container: HTMLElement,
 ): () => void {
   const [el, cleanup] = _track(() => widget(signal))
@@ -154,7 +154,7 @@ export function focus<A, B, E extends AnyEl>(
   w: Widget<B, E>,
   l: Lens<A, B>,
 ): Widget<A, E> {
-  return (s) => w(s.focus(l))
+  return (s) => w((s as Signal<A>).focus(l))
 }
 
 /**
@@ -180,9 +180,10 @@ export function narrow<A, B>(
     // `update` fires ahead of any derived signals, letting us clean up child
     // subscriptions before they receive an undefined value.
     let narrowed: Signal<B | undefined> | null = null
+    const ws = s as Signal<A>
 
     const render = () => {
-      narrowed = s.narrow(prism)
+      narrowed = ws.narrow(prism)
       const [child, cleanup] = _track(() => w(narrowed! as Signal<B>))
       innerCleanup = cleanup
       node.appendChild(child.node)
@@ -223,6 +224,7 @@ export function narrow<A, B>(
  */
 export function each<A>(w: Widget<A, FlowContent>): Widget<A[], DivEl> {
   return (listSignal) => {
+    const wListSignal = listSignal as Signal<A[]>
     const node = document.createElement("div")
     node.dataset["each"] = ""
 
@@ -239,7 +241,7 @@ export function each<A>(w: Widget<A, FlowContent>): Widget<A[], DivEl> {
           (arr) => arr[idx]!,
           (arr, v) => { const copy = [...arr]; copy[idx] = v; return copy },
         )
-        const itemSignal = listSignal.focus(itemLens)
+        const itemSignal = wListSignal.focus(itemLens)
         const [child, cleanup] = _track(() => w(itemSignal))
         itemCleanups.push(cleanup)
         node.appendChild(child.node)
@@ -271,10 +273,11 @@ export function beside<A, B>(
   wb: Widget<B, FlowContent>,
 ): Widget<[A, B], DivEl> {
   return (s) => {
+    const ws = s as Signal<[A, B]>
     const node = document.createElement("div")
     node.dataset["beside"] = ""
-    const sa = s.focus(index(0))
-    const sb = s.focus(index(1))
+    const sa = ws.focus(index(0))
+    const sb = ws.focus(index(1))
     const [ca, cleanupA] = _track(() => wa(sa))
     const [cb, cleanupB] = _track(() => wb(sb))
     node.appendChild(ca.node)
@@ -296,10 +299,11 @@ export function above<A, B>(
   wb: Widget<B, FlowContent>,
 ): Widget<[A, B], DivEl> {
   return (s) => {
+    const ws = s as Signal<[A, B]>
     const node = document.createElement("div")
     node.dataset["above"] = ""
-    const sa = s.focus(index(0))
-    const sb = s.focus(index(1))
+    const sa = ws.focus(index(0))
+    const sb = ws.focus(index(1))
     const [ca, cleanupA] = _track(() => wa(sa))
     const [cb, cleanupB] = _track(() => wb(sb))
     node.appendChild(ca.node)
@@ -350,7 +354,7 @@ export function map<A, B, E extends AnyEl>(
 ): Widget<B, E> {
   return (s) => {
     // isoP is a total bijection — narrow is always defined
-    const mapped = s.narrow(isoP) as unknown as Signal<A>
+    const mapped = (s as Signal<B>).narrow(isoP) as unknown as Signal<A>
     return w(mapped)
   }
 }
@@ -519,7 +523,7 @@ export function template<const R extends Record<string, keyof HTMLElementTagName
       queriedRefs[refName] = { _tag: tagName, node: el }
     }
 
-    bind(s, queriedRefs as RefsMap<R>)
+    bind(s as Signal<T>, queriedRefs as RefsMap<R>)
 
     return { _tag: "div", node }
   }
@@ -540,105 +544,119 @@ type KeyEntry<A> = {
 }
 
 /**
- * Keyed list rendering. Each item is identified by a stable key; DOM nodes
- * and widget state are preserved across list mutations (reorder, insert,
- * remove). Only newly-added keys allocate DOM nodes and signal subscriptions.
+ * Render a keyed list. Each item gets a stable Signal<T> for its lifetime —
+ * only added/removed items trigger mount/unmount. Reordering and in-place
+ * updates are handled without remounting.
  *
  * Write-back: if an item widget sets its signal (e.g. an editable field),
  * the change propagates back to the parent list signal at the item's current
- * key position. A flag prevents the resulting list update from cycling back.
+ * key position — but only when `s` is a writable Signal (has a `set` method).
+ * A flag prevents the resulting list update from cycling back.
  *
  * GC note: O(n) `Object.is` comparisons per list update (to sync item
  * signals), but O(new keys) DOM/signal allocations. Stable lists are cheap.
  *
+ * @param s       - Signal carrying the full array
+ * @param getKey  - Stable key function (like React's `key` prop)
+ * @param widget  - Widget factory receiving a per-item Signal<T>
+ * @param options - Optional container tag (default "div"); pass a specific
+ *                  HTML tag to fix CSS grid/flex layout issues that arise
+ *                  from an extra wrapper div.
+ *
  * @example
- * eachKeyed(rowWidget, (row) => row.id)
+ * eachKeyed(todosSignal, t => t.id, todoWidget)
+ * eachKeyed(rowsSignal, r => r.id, rowWidget, { container: "ul" })
  */
-export function eachKeyed<K extends string | number, A>(
-  w: Widget<A, FlowContent>,
-  key: (a: A) => K,
-): Widget<A[], DivEl> {
-  return (listSignal) => {
-    const node = document.createElement("div")
-    node.dataset["eachKeyed"] = ""
+export function eachKeyed<T>(
+  s: Signal<T[]> | ReadonlySignal<T[]>,
+  getKey: (item: T) => string,
+  widget: (itemSignal: Signal<T>) => AnyEl,
+  options?: { container?: keyof HTMLElementTagNameMap },
+): El<keyof HTMLElementTagNameMap, HTMLElement> {
+  const tag = options?.container ?? "div"
+  const node = document.createElement(tag)
+  node.dataset["eachKeyed"] = ""
 
-    const cache = new Map<K, KeyEntry<A>>()
+  const cache = new Map<string, KeyEntry<T>>()
 
-    const makeEntry = (k: K, item: A): KeyEntry<A> => {
-      const itemSignal = _signal(item)
-      let fromParent = false
+  const makeEntry = (k: string, item: T): KeyEntry<T> => {
+    const itemSignal = _signal(item)
+    let fromParent = false
 
-      // Write-back: item widget writes → find current index by key → update list.
-      // Skipped when the update originated from the parent (fromParent flag).
-      const writeBackUnsub = itemSignal.subscribe((v) => {
+    // Write-back: item widget writes → find current index by key → update list.
+    // Skipped when the update originated from the parent (fromParent flag).
+    // Only wired when the parent signal is writable (has a `set` method).
+    let writeBackUnsub: () => void = () => {}
+    if ('set' in s) {
+      writeBackUnsub = itemSignal.subscribe((v) => {
         if (fromParent) return
-        const list = listSignal.get()
-        const idx = list.findIndex((a) => key(a) === k)
+        const list = s.get()
+        const idx = list.findIndex((a) => getKey(a) === k)
         if (idx !== -1 && !Object.is(list[idx], v)) {
           const copy = [...list]
           copy[idx] = v
-          listSignal.set(copy)
+          ;(s as Signal<T[]>).set(copy)
         }
       })
-
-      const [child, widgetCleanup] = _track(() => w(itemSignal))
-
-      return {
-        itemSignal,
-        childNode: child.node,
-        cleanup: () => { widgetCleanup(); writeBackUnsub() },
-        setFromParent: (v) => {
-          fromParent = true
-          itemSignal.set(v)
-          fromParent = false
-        },
-      }
     }
 
-    const update = (items: A[]) => {
-      const nextKeys = items.map(key)
-      const nextSet = new Set(nextKeys)
+    const [child, widgetCleanup] = _track(() => widget(itemSignal))
 
-      // 1. Remove keys no longer present
-      for (const [k, entry] of cache) {
-        if (!nextSet.has(k)) {
-          entry.cleanup()
-          entry.childNode.parentNode?.removeChild(entry.childNode)
-          cache.delete(k)
-        }
-      }
-
-      // 2. Create entries for new keys; sync values for existing ones
-      for (let i = 0; i < items.length; i++) {
-        const k = nextKeys[i]!
-        const item = items[i]!
-        if (!cache.has(k)) {
-          cache.set(k, makeEntry(k, item))
-        } else {
-          // O(1) no-op if value unchanged (signal.set deduplicates via Object.is)
-          cache.get(k)!.setFromParent(item)
-        }
-      }
-
-      // 3. Reorder DOM nodes to match new order (insert in reverse, O(n)).
-      // Check parentNode too: new entries aren't in the container yet, so their
-      // nextSibling is null regardless of position — always insert them.
-      let ref: ChildNode | null = null
-      for (let i = items.length - 1; i >= 0; i--) {
-        const entry = cache.get(nextKeys[i]!)!
-        if (entry.childNode.parentNode !== node || entry.childNode.nextSibling !== ref) {
-          node.insertBefore(entry.childNode, ref)
-        }
-        ref = entry.childNode
-      }
+    return {
+      itemSignal,
+      childNode: child.node,
+      cleanup: () => { widgetCleanup(); writeBackUnsub() },
+      setFromParent: (v) => {
+        fromParent = true
+        itemSignal.set(v)
+        fromParent = false
+      },
     }
-
-    update(listSignal.get())
-    subscribe(listSignal, update)
-    _register(() => { for (const entry of cache.values()) entry.cleanup() })
-
-    return { _tag: "div", node }
   }
+
+  const update = (items: T[]) => {
+    const nextKeys = items.map(getKey)
+    const nextSet = new Set(nextKeys)
+
+    // 1. Remove keys no longer present
+    for (const [k, entry] of cache) {
+      if (!nextSet.has(k)) {
+        entry.cleanup()
+        entry.childNode.parentNode?.removeChild(entry.childNode)
+        cache.delete(k)
+      }
+    }
+
+    // 2. Create entries for new keys; sync values for existing ones
+    for (let i = 0; i < items.length; i++) {
+      const k = nextKeys[i]!
+      const item = items[i]!
+      if (!cache.has(k)) {
+        cache.set(k, makeEntry(k, item))
+      } else {
+        // O(1) no-op if value unchanged (signal.set deduplicates via Object.is)
+        cache.get(k)!.setFromParent(item)
+      }
+    }
+
+    // 3. Reorder DOM nodes to match new order (insert in reverse, O(n)).
+    // Check parentNode too: new entries aren't in the container yet, so their
+    // nextSibling is null regardless of position — always insert them.
+    let ref: ChildNode | null = null
+    for (let i = items.length - 1; i >= 0; i--) {
+      const entry = cache.get(nextKeys[i]!)!
+      if (entry.childNode.parentNode !== node || entry.childNode.nextSibling !== ref) {
+        node.insertBefore(entry.childNode, ref)
+      }
+      ref = entry.childNode
+    }
+  }
+
+  update(s.get())
+  subscribe(s, update)
+  _register(() => { for (const entry of cache.values()) entry.cleanup() })
+
+  return { _tag: tag, node }
 }
 
 // ── Event helper ──────────────────────────────────────────────────────────────
@@ -841,9 +859,10 @@ export function foldWidget<T, E>(
  */
 export function inputWidget(attrs?: Omit<InputAttrs, "value">): Widget<string, InputEl> {
   return (s) => {
+    const ws = s as Signal<string>
     const el = _input(attrs ?? {})
-    el.node.value = s.get()
-    bindInput(el.node, s)
+    el.node.value = ws.get()
+    bindInput(el.node, ws)
     return el
   }
 }
@@ -853,9 +872,10 @@ export function inputWidget(attrs?: Omit<InputAttrs, "value">): Widget<string, I
  */
 export function textareaWidget(attrs?: TextareaAttrs): Widget<string, TextareaEl> {
   return (s) => {
+    const ws = s as Signal<string>
     const el = _textarea(attrs ?? {})
-    el.node.value = s.get()
-    bindInput(el.node, s)
+    el.node.value = ws.get()
+    bindInput(el.node, ws)
     return el
   }
 }
@@ -865,9 +885,10 @@ export function textareaWidget(attrs?: TextareaAttrs): Widget<string, TextareaEl
  */
 export function checkboxWidget(attrs?: Omit<InputAttrs, "type" | "checked">): Widget<boolean, InputEl> {
   return (s) => {
+    const ws = s as Signal<boolean>
     const el = _input({ ...attrs, type: "checkbox" })
-    el.node.checked = s.get()
-    bindCheckbox(el.node, s)
+    el.node.checked = ws.get()
+    bindCheckbox(el.node, ws)
     return el
   }
 }
@@ -878,11 +899,12 @@ export function checkboxWidget(attrs?: Omit<InputAttrs, "type" | "checked">): Wi
  */
 export function numberInputWidget(attrs?: Omit<InputAttrs, "value" | "type">): Widget<number, InputEl> {
   return (s) => {
+    const ws = s as Signal<number>
     const el = _input({ ...attrs, type: "number" })
-    el.node.value = String(s.get())
+    el.node.value = String(ws.get())
     on(el.node, "input", () => {
       const n = el.node.valueAsNumber
-      if (!isNaN(n)) s.set(n)
+      if (!isNaN(n)) ws.set(n)
     })
     subscribe(s, (v) => { if (el.node.valueAsNumber !== v) el.node.value = String(v) })
     return el
@@ -901,9 +923,10 @@ export function selectWidget(
   attrs?: SelectAttrs,
 ): Widget<string, SelectEl> {
   return (s) => {
+    const ws = s as Signal<string>
     const el = _select(attrs ?? {}, ...(options.map((o) => _option({ value: o.value }, o.label))))
-    el.node.value = s.get()
-    bindSelect(el.node, s)
+    el.node.value = ws.get()
+    bindSelect(el.node, ws)
     return el
   }
 }
