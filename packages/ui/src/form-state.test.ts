@@ -6,6 +6,7 @@ import {
   createFormState,
   isFormValid,
   isDirty,
+  shouldShowError,
   type FormState,
 } from "./form-state.js"
 
@@ -225,5 +226,79 @@ describe("createForm > setErrors", () => {
     setErrors({ name: ["Already taken"] }, ["Please fix errors above"])
     expect(state.get().fieldErrors["name"]).toEqual(["Already taken"])
     expect(state.get().formErrors).toEqual(["Please fix errors above"])
+  })
+})
+
+// ── shouldShowError ───────────────────────────────────────────────────────────
+
+describe("shouldShowError", () => {
+  it("false when untouched and submitCount = 0", () => {
+    const s: FormState<Profile> = {
+      ...createFormState(defaults),
+      fieldErrors: { name: ["Required"] },
+    }
+    expect(shouldShowError(s, "name")).toBe(false)
+  })
+
+  it("false when touched but no errors", () => {
+    const s: FormState<Profile> = {
+      ...createFormState(defaults),
+      touched: { name: true },
+      fieldErrors: {},
+    }
+    expect(shouldShowError(s, "name")).toBe(false)
+  })
+
+  it("true when touched and has errors", () => {
+    const s: FormState<Profile> = {
+      ...createFormState(defaults),
+      touched: { name: true },
+      fieldErrors: { name: ["Required"] },
+    }
+    expect(shouldShowError(s, "name")).toBe(true)
+  })
+
+  it("true when submitCount > 0 and has errors (even if untouched)", () => {
+    const s: FormState<Profile> = {
+      ...createFormState(defaults),
+      submitCount: 1,
+      fieldErrors: { name: ["Required"] },
+    }
+    expect(shouldShowError(s, "name")).toBe(true)
+  })
+
+  it("false when submitCount > 0 but no errors", () => {
+    const s: FormState<Profile> = {
+      ...createFormState(defaults),
+      submitCount: 1,
+      fieldErrors: {},
+    }
+    expect(shouldShowError(s, "name")).toBe(false)
+  })
+})
+
+// ── createForm — reinitialize ─────────────────────────────────────────────────
+
+describe("createForm > reinitialize", () => {
+  it("resets to new defaults (different from original defaults)", () => {
+    const { state, reinitialize } = createForm({ defaults })
+    state.set({ ...state.get(), values: { name: "Alice", email: "alice@example.com" } })
+    reinitialize({ name: "Bob", email: "bob@example.com" })
+    expect(state.get().values).toEqual({ name: "Bob", email: "bob@example.com" })
+  })
+
+  it("clears fieldErrors, formErrors, touched, submitCount, submitting", () => {
+    const { state, handleSubmit, reinitialize } = createForm({
+      defaults,
+      validate: (v) => ({ fieldErrors: { name: v.name === "" ? ["Required"] : undefined } }),
+    })
+    handleSubmit(async () => {})()
+    reinitialize({ name: "Charlie", email: "charlie@example.com" })
+    const s = state.get()
+    expect(s.fieldErrors).toEqual({})
+    expect(s.formErrors).toEqual([])
+    expect(s.touched).toEqual({})
+    expect(s.submitCount).toBe(0)
+    expect(s.submitting).toBe(false)
   })
 })

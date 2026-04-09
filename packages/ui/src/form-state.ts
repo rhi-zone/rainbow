@@ -85,6 +85,15 @@ export function createFormState<T>(defaults: T): FormState<T> {
 }
 
 /**
+ * True when the error for `key` should be shown to the user.
+ * Errors are suppressed until the field is touched OR a submit has been attempted.
+ */
+export function shouldShowError<T>(state: FormState<T>, key: keyof T & string): boolean {
+  return (state.touched[key] === true || state.submitCount > 0) &&
+    (state.fieldErrors[key]?.length ?? 0) > 0
+}
+
+/**
  * True when `state` has no field errors and no form-level errors.
  * An empty array for `fieldErrors[key]` is treated as valid.
  */
@@ -150,6 +159,12 @@ export function createForm<T extends object>(options: {
   readonly handleSubmit: (onValid: (values: T) => Promise<void>) => (e?: Event) => void
   readonly reset: () => void
   readonly setErrors: (fieldErrors?: FieldErrors<T>, formErrors?: string[]) => void
+  /**
+   * Replace the form's defaults and reset all state to a fresh `FormState`
+   * built from `newDefaults`. Use this when reusing the same form instance
+   * across different records (e.g. switching between contacts).
+   */
+  readonly reinitialize: (newDefaults: T) => void
 } {
   const { defaults, validate } = options
   const state = signal(createFormState(defaults))
@@ -219,5 +234,9 @@ export function createForm<T extends object>(options: {
     })
   }
 
-  return { state, bind, handleSubmit, reset, setErrors }
+  const reinitialize = (newDefaults: T): void => {
+    state.set(createFormState(newDefaults))
+  }
+
+  return { state, bind, handleSubmit, reset, setErrors, reinitialize }
 }

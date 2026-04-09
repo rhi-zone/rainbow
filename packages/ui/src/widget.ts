@@ -36,6 +36,7 @@ import {
   type ReadonlySignal,
   type Lens,
   type Prism,
+  type AsyncData,
   signal as _signal,
   lens,
   index,
@@ -696,6 +697,137 @@ export function bindSelect(el: HTMLSelectElement, s: Signal<string>): void {
 export function bindCheckbox(el: HTMLInputElement, s: Signal<boolean>): void {
   on(el, "change", () => s.set(el.checked))
   subscribe(s, (v) => { if (el.checked !== v) el.checked = v })
+}
+
+// ── Reactive binding helpers ──────────────────────────────────────────────────
+
+/**
+ * Run `fn` immediately with the current signal value, then subscribe to future
+ * changes. Registers the subscription cleanup in the current widget context.
+ *
+ * Eliminates the `fn(s.get()); subscribe(s, fn)` boilerplate in template bind
+ * callbacks.
+ *
+ * Must be called during a widget call context.
+ */
+export function subscribeNow<T>(s: Signal<T> | ReadonlySignal<T>, fn: (v: T) => void): void {
+  fn(s.get())
+  _register(s.subscribe(fn))
+}
+
+/**
+ * Reactively set `el.textContent` to the value of `s`. Sets the initial value
+ * synchronously, then subscribes for future changes.
+ *
+ * Must be called during a widget call context.
+ *
+ * @example
+ * bindText(nameSpan.node, nameSignal)
+ */
+export function bindText(
+  el: { textContent: string | null },
+  s: Signal<string> | ReadonlySignal<string>,
+): void {
+  el.textContent = s.get()
+  _register(s.subscribe((v) => { el.textContent = v }))
+}
+
+/**
+ * Reactively set an attribute on `el` to the value of `s`. Sets the initial
+ * value synchronously, then subscribes for future changes.
+ *
+ * Must be called during a widget call context.
+ *
+ * @example
+ * bindAttr(imgEl.node, "src", urlSignal)
+ */
+export function bindAttr(
+  el: Element,
+  attr: string,
+  s: Signal<string> | ReadonlySignal<string>,
+): void {
+  el.setAttribute(attr, s.get())
+  _register(s.subscribe((v) => { el.setAttribute(attr, v) }))
+}
+
+/**
+ * Reactively toggle a CSS class on `el` based on the boolean value of `s`.
+ * Sets the initial state synchronously, then subscribes for future changes.
+ *
+ * Must be called during a widget call context.
+ *
+ * @example
+ * bindClass(rowEl.node, "selected", isSelectedSignal)
+ */
+export function bindClass(
+  el: Element,
+  className: string,
+  s: Signal<boolean> | ReadonlySignal<boolean>,
+): void {
+  el.classList.toggle(className, s.get())
+  _register(s.subscribe((v) => { el.classList.toggle(className, v) }))
+}
+
+// ── AsyncData combinator ──────────────────────────────────────────────────────
+
+/**
+ * Reactively render one of four states of an `AsyncData` signal into a
+ * container div. Each state maps to an optional render function; missing cases
+ * render an empty div. Replaces the container's single child on every state
+ * change.
+ *
+ * Modelled after `narrow` — manages inner cleanup when swapping states.
+ * Must be called during a widget call context.
+ *
+ * @example
+ * const container = foldWidget(asyncDataSignal, {
+ *   notAsked: () => text("—"),
+ *   loading:  () => text("Loading…"),
+ *   failure:  (err) => text(String(err)),
+ *   success:  (data) => renderData(data),
+ * })
+ */
+export function foldWidget<T, E>(
+  s: Signal<AsyncData<T, E>> | ReadonlySignal<AsyncData<T, E>>,
+  cases: {
+    notAsked?: () => AnyEl
+    loading?: () => AnyEl
+    failure?: (err: E) => AnyEl
+    success?: (value: T) => AnyEl
+  },
+): DivEl {
+  const node = document.createElement("div")
+  node.dataset["foldWidget"] = ""
+
+  let innerCleanup: (() => void) | null = null
+
+  const render = (ad: AsyncData<T, E>) => {
+    if (innerCleanup !== null) {
+      innerCleanup()
+      innerCleanup = null
+    }
+    node.replaceChildren()
+
+    let renderFn: (() => AnyEl) | null = null
+    switch (ad.status) {
+      case 'notAsked': renderFn = cases.notAsked ?? null; break
+      case 'loading':  renderFn = cases.loading  ?? null; break
+      case 'failure':  renderFn = cases.failure  ? () => cases.failure!(ad.error)  : null; break
+      case 'success':  renderFn = cases.success  ? () => cases.success!(ad.value)  : null; break
+    }
+
+    if (renderFn !== null) {
+      let el: AnyEl
+      ;[el, innerCleanup] = _track(renderFn)
+      node.appendChild(el.node)
+    }
+  }
+
+  render(s.get())
+  _register(s.subscribe(render))
+  _register(() => innerCleanup?.())
+
+  return { _tag: "div", node }
 }
 
 // ── Pre-built form widgets ────────────────────────────────────────────────────

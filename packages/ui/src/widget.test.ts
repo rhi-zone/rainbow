@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest"
-import { signal, lens, prism, iso, index, field, product } from "@rhi-zone/rainbow"
+import { signal, lens, prism, iso, index, field, product, notAsked, loading, failure, success } from "@rhi-zone/rainbow"
 import type { Signal } from "@rhi-zone/rainbow"
 import type { Widget } from "./widget.js"
 import {
@@ -33,6 +33,11 @@ import {
   numberInputWidget,
   selectWidget,
   subscribe,
+  subscribeNow,
+  bindText,
+  bindAttr,
+  bindClass,
+  foldWidget,
 } from "./widget.js"
 import * as h from "./html.js"
 
@@ -909,6 +914,287 @@ describe("textareaWidget", () => {
     ta.value = "edited"
     ta.dispatchEvent(new Event("input"))
     expect(s.get()).toBe("edited")
+    cleanup(root, unmount)
+  })
+})
+
+// ── subscribeNow ──────────────────────────────────────────────────────────────
+
+describe("subscribeNow", () => {
+  it("fires callback immediately with current value", () => {
+    const root = makeRoot()
+    const s = signal("initial")
+    const calls: string[] = []
+    const w: Widget<string> = (sig) => {
+      const node = document.createElement("div")
+      subscribeNow(sig, (v) => { calls.push(v) })
+      return { _tag: "div", node }
+    }
+    const unmount = mount(w, s, root)
+    expect(calls).toEqual(["initial"])
+    cleanup(root, unmount)
+  })
+
+  it("fires callback on subsequent signal changes", () => {
+    const root = makeRoot()
+    const s = signal("a")
+    const calls: string[] = []
+    const w: Widget<string> = (sig) => {
+      const node = document.createElement("div")
+      subscribeNow(sig, (v) => { calls.push(v) })
+      return { _tag: "div", node }
+    }
+    const unmount = mount(w, s, root)
+    s.set("b")
+    s.set("c")
+    expect(calls).toEqual(["a", "b", "c"])
+    cleanup(root, unmount)
+  })
+
+  it("stops firing after unmount (cleanup)", () => {
+    const root = makeRoot()
+    const s = signal("x")
+    const calls: string[] = []
+    const w: Widget<string> = (sig) => {
+      const node = document.createElement("div")
+      subscribeNow(sig, (v) => { calls.push(v) })
+      return { _tag: "div", node }
+    }
+    const unmount = mount(w, s, root)
+    expect(calls).toEqual(["x"])
+    unmount()
+    root.remove()
+    s.set("y")
+    expect(calls).toEqual(["x"])  // no further calls after unmount
+  })
+})
+
+// ── bindText ──────────────────────────────────────────────────────────────────
+
+describe("bindText", () => {
+  it("sets initial textContent from signal", () => {
+    const root = makeRoot()
+    const s = signal("hello")
+    const w: Widget<string> = (sig) => {
+      const node = document.createElement("span")
+      bindText(node, sig)
+      return { _tag: "span", node }
+    }
+    const unmount = mount(w, s, root)
+    expect(root.querySelector("span")!.textContent).toBe("hello")
+    cleanup(root, unmount)
+  })
+
+  it("updates textContent when signal changes", () => {
+    const root = makeRoot()
+    const s = signal("first")
+    const w: Widget<string> = (sig) => {
+      const node = document.createElement("span")
+      bindText(node, sig)
+      return { _tag: "span", node }
+    }
+    const unmount = mount(w, s, root)
+    s.set("second")
+    expect(root.querySelector("span")!.textContent).toBe("second")
+    cleanup(root, unmount)
+  })
+
+  it("stops updating after unmount", () => {
+    const root = makeRoot()
+    const s = signal("a")
+    const w: Widget<string> = (sig) => {
+      const node = document.createElement("span")
+      bindText(node, sig)
+      return { _tag: "span", node }
+    }
+    const unmount = mount(w, s, root)
+    const span = root.querySelector("span")!
+    unmount()
+    root.remove()
+    s.set("b")
+    expect(span.textContent).toBe("a")
+  })
+})
+
+// ── bindAttr ──────────────────────────────────────────────────────────────────
+
+describe("bindAttr", () => {
+  it("sets initial attribute value from signal", () => {
+    const root = makeRoot()
+    const s = signal("https://example.com/img.png")
+    const w: Widget<string> = (sig) => {
+      const node = document.createElement("img")
+      bindAttr(node, "src", sig)
+      return { _tag: "img", node } as h.AnyEl
+    }
+    const unmount = mount(w, s, root)
+    expect(root.querySelector("img")!.getAttribute("src")).toBe("https://example.com/img.png")
+    cleanup(root, unmount)
+  })
+
+  it("updates attribute when signal changes", () => {
+    const root = makeRoot()
+    const s = signal("red")
+    const w: Widget<string> = (sig) => {
+      const node = document.createElement("div")
+      bindAttr(node, "data-color", sig)
+      return { _tag: "div", node }
+    }
+    const unmount = mount(w, s, root)
+    s.set("blue")
+    expect(root.querySelector("div")!.getAttribute("data-color")).toBe("blue")
+    cleanup(root, unmount)
+  })
+})
+
+// ── bindClass ─────────────────────────────────────────────────────────────────
+
+describe("bindClass", () => {
+  it("adds class when signal is true", () => {
+    const root = makeRoot()
+    const s = signal(true)
+    const w: Widget<boolean> = (sig) => {
+      const node = document.createElement("div")
+      bindClass(node, "active", sig)
+      return { _tag: "div", node }
+    }
+    const unmount = mount(w, s, root)
+    expect(root.querySelector("div")!.classList.contains("active")).toBe(true)
+    cleanup(root, unmount)
+  })
+
+  it("does not add class when signal is false", () => {
+    const root = makeRoot()
+    const s = signal(false)
+    const w: Widget<boolean> = (sig) => {
+      const node = document.createElement("div")
+      bindClass(node, "active", sig)
+      return { _tag: "div", node }
+    }
+    const unmount = mount(w, s, root)
+    expect(root.querySelector("div")!.classList.contains("active")).toBe(false)
+    cleanup(root, unmount)
+  })
+
+  it("toggles class reactively", () => {
+    const root = makeRoot()
+    const s = signal(false)
+    const w: Widget<boolean> = (sig) => {
+      const node = document.createElement("div")
+      bindClass(node, "on", sig)
+      return { _tag: "div", node }
+    }
+    const unmount = mount(w, s, root)
+    const div = root.querySelector("div")!
+    expect(div.classList.contains("on")).toBe(false)
+    s.set(true)
+    expect(div.classList.contains("on")).toBe(true)
+    s.set(false)
+    expect(div.classList.contains("on")).toBe(false)
+    cleanup(root, unmount)
+  })
+})
+
+// ── foldWidget ────────────────────────────────────────────────────────────────
+
+describe("foldWidget", () => {
+  function makeSpan(text: string): h.AnyEl {
+    const node = document.createElement("span")
+    node.textContent = text
+    return { _tag: "span", node } as h.AnyEl
+  }
+
+  it("renders notAsked case initially", () => {
+    const root = makeRoot()
+    const s = signal(notAsked as import("@rhi-zone/rainbow").AsyncData<string, string>)
+    const w: Widget<import("@rhi-zone/rainbow").AsyncData<string, string>> = (sig) => {
+      return foldWidget(sig, {
+        notAsked: () => makeSpan("not-asked"),
+        loading:  () => makeSpan("loading"),
+        failure:  (e) => makeSpan(`error:${e}`),
+        success:  (v) => makeSpan(`ok:${v}`),
+      })
+    }
+    const unmount = mount(w, s, root)
+    expect(root.querySelector("span")!.textContent).toBe("not-asked")
+    cleanup(root, unmount)
+  })
+
+  it("renders loading case", () => {
+    const root = makeRoot()
+    const s = signal(loading as import("@rhi-zone/rainbow").AsyncData<string, string>)
+    const w: Widget<import("@rhi-zone/rainbow").AsyncData<string, string>> = (sig) => {
+      return foldWidget(sig, {
+        notAsked: () => makeSpan("not-asked"),
+        loading:  () => makeSpan("loading"),
+        failure:  (e) => makeSpan(`error:${e}`),
+        success:  (v) => makeSpan(`ok:${v}`),
+      })
+    }
+    const unmount = mount(w, s, root)
+    expect(root.querySelector("span")!.textContent).toBe("loading")
+    cleanup(root, unmount)
+  })
+
+  it("renders failure case with error value", () => {
+    const root = makeRoot()
+    const s = signal(failure("oops") as import("@rhi-zone/rainbow").AsyncData<string, string>)
+    const w: Widget<import("@rhi-zone/rainbow").AsyncData<string, string>> = (sig) => {
+      return foldWidget(sig, {
+        notAsked: () => makeSpan("not-asked"),
+        loading:  () => makeSpan("loading"),
+        failure:  (e) => makeSpan(`error:${e}`),
+        success:  (v) => makeSpan(`ok:${v}`),
+      })
+    }
+    const unmount = mount(w, s, root)
+    expect(root.querySelector("span")!.textContent).toBe("error:oops")
+    cleanup(root, unmount)
+  })
+
+  it("renders success case with value", () => {
+    const root = makeRoot()
+    const s = signal(success("data") as import("@rhi-zone/rainbow").AsyncData<string, string>)
+    const w: Widget<import("@rhi-zone/rainbow").AsyncData<string, string>> = (sig) => {
+      return foldWidget(sig, {
+        notAsked: () => makeSpan("not-asked"),
+        loading:  () => makeSpan("loading"),
+        failure:  (e) => makeSpan(`error:${e}`),
+        success:  (v) => makeSpan(`ok:${v}`),
+      })
+    }
+    const unmount = mount(w, s, root)
+    expect(root.querySelector("span")!.textContent).toBe("ok:data")
+    cleanup(root, unmount)
+  })
+
+  it("swaps child when state changes", () => {
+    const root = makeRoot()
+    const s = signal<import("@rhi-zone/rainbow").AsyncData<string, string>>(loading)
+    const w: Widget<import("@rhi-zone/rainbow").AsyncData<string, string>> = (sig) => {
+      return foldWidget(sig, {
+        loading:  () => makeSpan("loading"),
+        success:  (v) => makeSpan(`ok:${v}`),
+      })
+    }
+    const unmount = mount(w, s, root)
+    expect(root.querySelector("span")!.textContent).toBe("loading")
+    s.set(success("result"))
+    expect(root.querySelector("span")!.textContent).toBe("ok:result")
+    cleanup(root, unmount)
+  })
+
+  it("renders empty div for missing cases", () => {
+    const root = makeRoot()
+    const s = signal<import("@rhi-zone/rainbow").AsyncData<string, string>>(loading)
+    const w: Widget<import("@rhi-zone/rainbow").AsyncData<string, string>> = (sig) => {
+      return foldWidget(sig, {
+        success: (v) => makeSpan(`ok:${v}`),
+      })
+    }
+    const unmount = mount(w, s, root)
+    // loading case has no handler — container should be empty
+    expect(root.querySelector("[data-fold-widget]")!.children).toHaveLength(0)
     cleanup(root, unmount)
   })
 })
