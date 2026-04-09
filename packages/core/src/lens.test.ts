@@ -4,19 +4,19 @@ import { lens, composeLens, field, index, id, arrayOf, recordOf, mapOf } from '.
 describe('lens laws', () => {
   const nameLens = field<{ name: string; age: number }, 'name'>('name')
 
-  it('get(set(a, b)) = b', () => {
+  it('view(review(b, a)) = b', () => {
     const a = { name: 'Alice', age: 30 }
-    expect(nameLens.get(nameLens.set(a, 'Bob'))).toBe('Bob')
+    expect(nameLens.view(nameLens.review('Bob', a))).toBe('Bob')
   })
 
-  it('set(a, get(a)) = a', () => {
+  it('review(view(a), a) = a', () => {
     const a = { name: 'Alice', age: 30 }
-    expect(nameLens.set(a, nameLens.get(a))).toEqual(a)
+    expect(nameLens.review(nameLens.view(a), a)).toEqual(a)
   })
 
-  it('set(set(a, b1), b2) = set(a, b2)', () => {
+  it('review(b2, review(b1, a)) = review(b2, a)', () => {
     const a = { name: 'Alice', age: 30 }
-    expect(nameLens.set(nameLens.set(a, 'Bob'), 'Carol')).toEqual(nameLens.set(a, 'Carol'))
+    expect(nameLens.review('Carol', nameLens.review('Bob', a))).toEqual(nameLens.review('Carol', a))
   })
 })
 
@@ -29,29 +29,29 @@ describe('composeLens', () => {
   const outerX = composeLens(innerLens, xLens)
 
   it('gets through composition', () => {
-    expect(outerX.get({ inner: { x: 42 } })).toBe(42)
+    expect(outerX.view({ inner: { x: 42 } })).toBe(42)
   })
 
   it('sets through composition', () => {
-    expect(outerX.set({ inner: { x: 1 } }, 99)).toEqual({ inner: { x: 99 } })
+    expect(outerX.review(99, { inner: { x: 1 } })).toEqual({ inner: { x: 99 } })
   })
 
-  it('obeys get(set(a, b)) = b', () => {
+  it('obeys view(review(b, a)) = b', () => {
     const a = { inner: { x: 1 } }
-    expect(outerX.get(outerX.set(a, 7))).toBe(7)
+    expect(outerX.view(outerX.review(7, a))).toBe(7)
   })
 })
 
 describe('index', () => {
-  it('gets element at index 0', () => expect(index<[number, string]>(0).get([1, 'a'])).toBe(1))
-  it('sets element at index 0', () => expect(index<[number, string]>(0).set([1, 'a'], 2)).toEqual([2, 'a']))
-  it('gets element at index 1', () => expect(index<[number, string]>(1).get([1, 'a'])).toBe('a'))
-  it('sets element at index 1', () => expect(index<[number, string]>(1).set([1, 'a'], 'b')).toEqual([1, 'b']))
+  it('gets element at index 0', () => expect(index<[number, string]>(0).view([1, 'a'])).toBe(1))
+  it('sets element at index 0', () => expect(index<[number, string]>(0).review(2, [1, 'a'])).toEqual([2, 'a']))
+  it('gets element at index 1', () => expect(index<[number, string]>(1).view([1, 'a'])).toBe('a'))
+  it('sets element at index 1', () => expect(index<[number, string]>(1).review('b', [1, 'a'])).toEqual([1, 'b']))
 })
 
 describe('id', () => {
-  it('get returns value', () => expect(id<number>().get(5)).toBe(5))
-  it('set returns new value', () => expect(id<number>().set(5, 10)).toBe(10))
+  it('view returns value', () => expect(id<number>().view(5)).toBe(5))
+  it('review returns new value', () => expect(id<number>().review(10, 5)).toBe(10))
 })
 
 type User = { name: string; age: number }
@@ -61,39 +61,45 @@ describe('arrayOf', () => {
   const users: User[] = [{ name: 'Alice', age: 30 }, { name: 'Bob', age: 25 }]
   const l = arrayOf(nameLens)
 
-  it('gets all values', () => expect(l.get(users)).toEqual(['Alice', 'Bob']))
-  it('sets all values', () => expect(l.set(users, ['Carol', 'Dave'])).toEqual([
+  it('gets all values', () => expect(l.view(users)).toEqual(['Alice', 'Bob']))
+  it('sets all values', () => expect(l.review(['Carol', 'Dave'], users)).toEqual([
     { name: 'Carol', age: 30 },
     { name: 'Dave', age: 25 },
   ]))
-  it('get(set(a, b)) = b', () => expect(l.get(l.set(users, ['X', 'Y']))).toEqual(['X', 'Y']))
-  it('set(a, get(a)) = a', () => expect(l.set(users, l.get(users))).toEqual(users))
+  it('view(review(b, a)) = b', () => {
+    const b = ['X', 'Y']
+    expect(l.view(l.review(b, users))).toEqual(b)
+  })
+  it('review(view(a), a) = a', () => expect(l.review(l.view(users), users)).toEqual(users))
 })
 
 describe('recordOf', () => {
   const rec: Record<string, User> = { u1: { name: 'Alice', age: 30 }, u2: { name: 'Bob', age: 25 } }
   const l = recordOf(nameLens)
 
-  it('gets all values', () => expect(l.get(rec)).toEqual({ u1: 'Alice', u2: 'Bob' }))
-  it('sets all values', () => expect(l.set(rec, { u1: 'Carol', u2: 'Dave' })).toEqual({
+  it('gets all values', () => expect(l.view(rec)).toEqual({ u1: 'Alice', u2: 'Bob' }))
+  it('sets all values', () => expect(l.review({ u1: 'Carol', u2: 'Dave' }, rec)).toEqual({
     u1: { name: 'Carol', age: 30 },
     u2: { name: 'Dave', age: 25 },
   }))
-  it('get(set(a, b)) = b', () => expect(l.get(l.set(rec, { u1: 'X', u2: 'Y' }))).toEqual({ u1: 'X', u2: 'Y' }))
-  it('set(a, get(a)) = a', () => expect(l.set(rec, l.get(rec))).toEqual(rec))
+  it('view(review(b, a)) = b', () => {
+    const b = { u1: 'X', u2: 'Y' }
+    expect(l.view(l.review(b, rec))).toEqual(b)
+  })
+  it('review(view(a), a) = a', () => expect(l.review(l.view(rec), rec)).toEqual(rec))
 })
 
 describe('mapOf', () => {
   const m = new Map([['u1', { name: 'Alice', age: 30 }], ['u2', { name: 'Bob', age: 25 }]])
   const l = mapOf(nameLens)
 
-  it('gets all values', () => expect(l.get(m)).toEqual(new Map([['u1', 'Alice'], ['u2', 'Bob']])))
-  it('sets all values', () => expect(l.set(m, new Map([['u1', 'Carol'], ['u2', 'Dave']]))).toEqual(
+  it('gets all values', () => expect(l.view(m)).toEqual(new Map([['u1', 'Alice'], ['u2', 'Bob']])))
+  it('sets all values', () => expect(l.review(new Map([['u1', 'Carol'], ['u2', 'Dave']]), m)).toEqual(
     new Map([['u1', { name: 'Carol', age: 30 }], ['u2', { name: 'Dave', age: 25 }]])
   ))
-  it('get(set(a, b)) = b', () => {
+  it('view(review(b, a)) = b', () => {
     const b = new Map([['u1', 'X'], ['u2', 'Y']])
-    expect(l.get(l.set(m, b))).toEqual(b)
+    expect(l.view(l.review(b, m))).toEqual(b)
   })
-  it('set(a, get(a)) = a', () => expect(l.set(m, l.get(m))).toEqual(m))
+  it('review(view(a), a) = a', () => expect(l.review(l.view(m), m)).toEqual(m))
 })

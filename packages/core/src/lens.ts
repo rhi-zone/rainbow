@@ -1,23 +1,25 @@
+import type { Optic } from './optic.ts'
+
 /**
  * A Lens<A, B> focuses on a field of type B within a structure of type A.
  *
  * Laws:
- *   get(set(a, b)) = b
- *   set(a, get(a)) = a
- *   set(set(a, b1), b2) = set(a, b2)
+ *   view(review(b, a)) = b
+ *   review(view(a), a) = a
+ *   review(b, review(b1, a)) = review(b, a)
  */
-export interface Lens<A, B> {
-  get(a: A): B
-  set(a: A, b: B): A
+export interface Lens<A, B> extends Optic<A, B> {
+  view(a: A): B
+  review(b: B, a: A): A
 }
 
 /**
- * Construct a lens from explicit get and set functions.
- * @param get - Extract B from A.
- * @param set - Return a new A with the B replaced.
+ * Construct a lens from explicit view and review functions.
+ * @param view   - Extract B from A.
+ * @param review - Return a new A with B replaced.
  */
-export function lens<A, B>(get: (a: A) => B, set: (a: A, b: B) => A): Lens<A, B> {
-  return { get, set }
+export function lens<A, B>(view: (a: A) => B, review: (b: B, a: A) => A): Lens<A, B> {
+  return { view, review }
 }
 
 /**
@@ -26,8 +28,8 @@ export function lens<A, B>(get: (a: A) => B, set: (a: A, b: B) => A): Lens<A, B>
  */
 export function composeLens<A, B, C>(ab: Lens<A, B>, bc: Lens<B, C>): Lens<A, C> {
   return {
-    get: (a) => bc.get(ab.get(a)),
-    set: (a, c) => ab.set(a, bc.set(ab.get(a), c)),
+    view:   (a) => bc.view(ab.view(a)),
+    review: (c, a) => ab.review(bc.review(c, ab.view(a)), a),
   }
 }
 
@@ -35,7 +37,7 @@ export function composeLens<A, B, C>(ab: Lens<A, B>, bc: Lens<B, C>): Lens<A, C>
 export function index<T extends readonly unknown[], N extends number & keyof T>(n: N): Lens<T, T[N]> {
   return lens(
     (t) => t[n],
-    (t, v) => { const copy = [...t] as unknown[]; copy[n] = v; return copy as unknown as T },
+    (v, t) => { const copy = [...t] as unknown[]; copy[n] = v; return copy as unknown as T },
   )
 }
 
@@ -46,13 +48,13 @@ export function index<T extends readonly unknown[], N extends number & keyof T>(
 export function field<A, K extends keyof A>(key: K): Lens<A, A[K]> {
   return lens(
     (a) => a[key],
-    (a, v) => ({ ...a, [key]: v }),
+    (v, a) => ({ ...a, [key]: v }),
   )
 }
 
 /** Identity lens — focuses on the whole value. */
 export function id<A>(): Lens<A, A> {
-  return lens((a) => a, (_, a) => a)
+  return lens((a) => a, (a) => a)
 }
 
 /**
@@ -60,15 +62,15 @@ export function id<A>(): Lens<A, A> {
  *
  * Laws hold as long as the `A[]` written back has the same length as the `S[]`
  * it came from — which is guaranteed when the only source of `A[]` values is
- * `get` on the same array.
+ * `view` on the same array.
  *
  * Useful for two-way bindings over arrays of objects:
  *   signal<User[]>.focus(arrayOf(field("name")))  // Signal<string[]>
  */
 export function arrayOf<S, A>(l: Lens<S, A>): Lens<S[], A[]> {
   return lens(
-    (ss) => ss.map(s => l.get(s)),
-    (ss, as) => ss.map((s, i) => l.set(s, as[i]!)),
+    (ss) => ss.map(s => l.view(s)),
+    (as, ss) => ss.map((s, i) => l.review(as[i]!, s)),
   )
 }
 
@@ -81,8 +83,8 @@ export function arrayOf<S, A>(l: Lens<S, A>): Lens<S[], A[]> {
  */
 export function recordOf<K extends string, S, A>(l: Lens<S, A>): Lens<Record<K, S>, Record<K, A>> {
   return lens(
-    (rec) => Object.fromEntries(Object.entries(rec).map(([k, v]) => [k, l.get(v as S)])) as Record<K, A>,
-    (rec, out) => Object.fromEntries(Object.entries(rec).map(([k, v]) => [k, l.set(v as S, (out as Record<string, A>)[k]!)])) as Record<K, S>,
+    (rec) => Object.fromEntries(Object.entries(rec).map(([k, v]) => [k, l.view(v as S)])) as Record<K, A>,
+    (out, rec) => Object.fromEntries(Object.entries(rec).map(([k, v]) => [k, l.review((out as Record<string, A>)[k]!, v as S)])) as Record<K, S>,
   )
 }
 
@@ -95,7 +97,7 @@ export function recordOf<K extends string, S, A>(l: Lens<S, A>): Lens<Record<K, 
  */
 export function mapOf<K, S, A>(l: Lens<S, A>): Lens<Map<K, S>, Map<K, A>> {
   return lens(
-    (m) => new Map([...m].map(([k, v]) => [k, l.get(v)])),
-    (m, out) => new Map([...m].map(([k, v]) => [k, l.set(v, out.get(k)!)])),
+    (m) => new Map([...m].map(([k, v]) => [k, l.view(v)])),
+    (out, m) => new Map([...m].map(([k, v]) => [k, l.review(out.get(k)!, v)])),
   )
 }

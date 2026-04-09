@@ -154,11 +154,11 @@ class FocusedSignal<A, B> implements Signal<B> {
   }
 
   get(): B {
-    return this._lens.get(this._source.get())
+    return this._lens.view(this._source.get())
   }
 
   set(b: B): void {
-    this._source.set(this._lens.set(this._source.get(), b))
+    this._source.set(this._lens.review(b, this._source.get()))
   }
 
   subscribe(fn: Subscriber<B>): () => void {
@@ -195,12 +195,12 @@ class NarrowedSignal<A, B> implements Signal<B | undefined> {
   }
 
   get(): B | undefined {
-    return this._prism.match(this._source.get())
+    return this._prism.view(this._source.get())
   }
 
   set(b: B | undefined): void {
     if (b !== undefined) {
-      this._source.set(this._prism.inject(b))
+      this._source.set(this._prism.review(b))
     }
   }
 

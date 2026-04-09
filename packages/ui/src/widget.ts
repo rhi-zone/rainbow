@@ -206,7 +206,7 @@ export function narrow<A, B>(
     }
 
     const update = (a: A) => {
-      const matched = prism.match(a)
+      const matched = prism.view(a)
       if (matched !== undefined && innerCleanup === null) {
         render()
       } else if (matched === undefined && innerCleanup !== null) {
@@ -223,7 +223,7 @@ export function narrow<A, B>(
     subscribe(s, update)
 
     // Initial render (if prism matches right away)
-    if (prism.match(s.get()) !== undefined) render()
+    if (prism.view(s.get()) !== undefined) render()
 
     _register(() => innerCleanup?.())
     return { _tag: "div", node }

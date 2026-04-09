@@ -14,30 +14,30 @@ import { cond } from './cond.ts'
 // Lens laws
 // ---------------------------------------------------------------------------
 describe('Lens laws', () => {
-  // get(set(a, b)) = b
+  // view(review(b, a)) = b
   it('get-set: reading back what was written', () => {
     fc.assert(fc.property(
       fc.record({ name: fc.string(), age: fc.integer() }),
       fc.string(),
       (obj, name) => {
         const l = field<{ name: string; age: number }, 'name'>('name')
-        return l.get(l.set(obj, name)) === name
+        return l.view(l.review(name, obj)) === name
       },
     ))
   })
 
-  // set(a, get(a)) = a
+  // review(view(a), a) = a
   it('set-get: writing what was already there is a no-op', () => {
     fc.assert(fc.property(
       fc.record({ name: fc.string(), age: fc.integer() }),
       (obj) => {
         const l = field<{ name: string; age: number }, 'name'>('name')
-        return JSON.stringify(l.set(obj, l.get(obj))) === JSON.stringify(obj)
+        return JSON.stringify(l.review(l.view(obj), obj)) === JSON.stringify(obj)
       },
     ))
   })
 
-  // set(set(a, b1), b2) = set(a, b2)
+  // review(b2, review(b1, a)) = review(b2, a)
   it('set-set: writing twice is same as writing once with last value', () => {
     fc.assert(fc.property(
       fc.record({ name: fc.string(), age: fc.integer() }),
@@ -45,22 +45,22 @@ describe('Lens laws', () => {
       fc.string(),
       (obj, name1, name2) => {
         const l = field<{ name: string; age: number }, 'name'>('name')
-        const double = l.set(l.set(obj, name1), name2)
-        const single = l.set(obj, name2)
+        const double = l.review(name2, l.review(name1, obj))
+        const single = l.review(name2, obj)
         return JSON.stringify(double) === JSON.stringify(single)
       },
     ))
   })
 
-  // Composition: (ab . bc).get(a) = bc.get(ab.get(a))
-  it('composeLens preserves get', () => {
+  // Composition: (ab . bc).view(a) = bc.view(ab.view(a))
+  it('composeLens preserves view', () => {
     fc.assert(fc.property(
       fc.record({ inner: fc.record({ value: fc.integer() }) }),
       (obj) => {
         const outer = field<typeof obj, 'inner'>('inner')
         const inner = field<{ value: number }, 'value'>('value')
         const composed = composeLens(outer, inner)
-        return composed.get(obj) === inner.get(outer.get(obj))
+        return composed.view(obj) === inner.view(outer.view(obj))
       },
     ))
   })
@@ -69,21 +69,21 @@ describe('Lens laws', () => {
   it('index(0) focuses on first element of a pair', () => {
     fc.assert(fc.property(fc.integer(), fc.string(), (a, b) => {
       const l = index<[number, string]>(0)
-      return l.get([a, b]) === a && JSON.stringify(l.set([a, b], 99)) === JSON.stringify([99, b])
+      return l.view([a, b]) === a && JSON.stringify(l.review(99, [a, b])) === JSON.stringify([99, b])
     }))
   })
 
   it('index(1) focuses on second element of a pair', () => {
     fc.assert(fc.property(fc.integer(), fc.string(), (a, b) => {
       const l = index<[number, string]>(1)
-      return l.get([a, b]) === b && JSON.stringify(l.set([a, b], 'z')) === JSON.stringify([a, 'z'])
+      return l.view([a, b]) === b && JSON.stringify(l.review('z', [a, b])) === JSON.stringify([a, 'z'])
     }))
   })
 
   it('id is the identity lens', () => {
     fc.assert(fc.property(fc.integer(), (n) => {
       const l = id<number>()
-      return l.get(n) === n && l.set(n, 42) === 42
+      return l.view(n) === n && l.review(42, n) === 42
     }))
   })
 })
@@ -96,7 +96,7 @@ describe('Prism laws', () => {
   it('match-inject: round-trip from B back to A then back to B', () => {
     fc.assert(fc.property(fc.integer(), (n) => {
       const p = some<number>()
-      return p.match(p.inject(n)) === n
+      return p.view(p.review(n)) === n
     }))
   })
 
@@ -105,9 +105,9 @@ describe('Prism laws', () => {
     fc.assert(fc.property(fc.integer(), (n) => {
       const a: number | undefined = n > 0 ? n : undefined
       const p = some<number>()
-      const b = p.match(a)
+      const b = p.view(a)
       if (b === undefined) return true   // prism didn't match — law vacuously holds
-      return p.inject(b) === a
+      return p.review(b) === a
     }))
   })
 
@@ -115,7 +115,7 @@ describe('Prism laws', () => {
   it('iso match is total (always returns a value)', () => {
     fc.assert(fc.property(fc.integer(), (n) => {
       const p = iso<number, string>(String, Number)
-      return p.match(n) !== undefined
+      return p.view(n) !== undefined
     }))
   })
 
@@ -125,7 +125,7 @@ describe('Prism laws', () => {
     const p2 = some<number>()                       // A | undefined → A
     const composed = composePrism(p1, p2)
     fc.assert(fc.property(fc.integer({ min: 1 }), (n) => {
-      return composed.match(composed.inject(n)) === n
+      return composed.view(composed.review(n)) === n
     }))
   })
 })

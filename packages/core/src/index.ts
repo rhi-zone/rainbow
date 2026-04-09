@@ -1,5 +1,6 @@
 // rainbow — optics-based reactivity
 
+export type { Optic } from './optic.ts'
 export type { Lens } from './lens.ts'
 export { lens, composeLens, field, index, id, arrayOf, recordOf, mapOf } from './lens.ts'
 

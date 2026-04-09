@@ -1,22 +1,24 @@
+import type { Optic } from './optic.ts'
+
 /**
  * A Prism<A, B> focuses on a case of type B within a sum type A.
  *
  * Laws:
- *   match(inject(b)) = b
- *   if match(a) = b then inject(b) = a
+ *   view(review(b)) = b
+ *   if view(a) = b then review(b) = a
  */
-export interface Prism<A, B> {
-  match(a: A): B | undefined
-  inject(b: B): A
+export interface Prism<A, B> extends Optic<A, B> {
+  view(a: A): B | undefined
+  review(b: B): A
 }
 
 /**
- * Construct a prism from explicit match and inject functions.
- * @param match - Extract B from A, or return undefined if the case doesn't apply.
- * @param inject - Construct an A from a B.
+ * Construct a prism from explicit view and review functions.
+ * @param view   - Extract B from A, or return undefined if the case doesn't apply.
+ * @param review - Construct an A from a B.
  */
-export function prism<A, B>(match: (a: A) => B | undefined, inject: (b: B) => A): Prism<A, B> {
-  return { match, inject }
+export function prism<A, B>(view: (a: A) => B | undefined, review: (b: B) => A): Prism<A, B> {
+  return { view, review }
 }
 
 /**
@@ -25,11 +27,11 @@ export function prism<A, B>(match: (a: A) => B | undefined, inject: (b: B) => A)
  */
 export function composePrism<A, B, C>(ab: Prism<A, B>, bc: Prism<B, C>): Prism<A, C> {
   return {
-    match: (a) => {
-      const b = ab.match(a)
-      return b !== undefined ? bc.match(b) : undefined
+    view:   (a) => {
+      const b = ab.view(a)
+      return b !== undefined ? bc.view(b) : undefined
     },
-    inject: (c) => ab.inject(bc.inject(c)),
+    review: (c) => ab.review(bc.review(c)),
   }
 }
 
@@ -43,7 +45,7 @@ export function some<A>(): Prism<A | undefined, A> {
 
 /**
  * Prism that always matches — models an isomorphism between A and B.
- * @param to - Convert A to B.
+ * @param to   - Convert A to B.
  * @param from - Convert B back to A.
  */
 export function iso<A, B>(to: (a: A) => B, from: (b: B) => A): Prism<A, B> {

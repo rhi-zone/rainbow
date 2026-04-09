@@ -65,8 +65,8 @@ export function composeWithLens<A, B extends object, C>(
   t: Traversal<B, C>,
 ): Traversal<A, C> {
   return traversal(
-    (a) => t.getAll(lens.get(a)),
-    (a, f) => lens.set(a, t.modify(lens.get(a), f)),
+    (a) => t.getAll(lens.view(a)),
+    (a, f) => lens.review(t.modify(lens.view(a), f), a),
   )
 }
 

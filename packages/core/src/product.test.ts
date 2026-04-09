@@ -160,7 +160,7 @@ describe('product.narrow and compositions', () => {
     // Lens: number | undefined → string (display)
     const asString = lens<number | undefined, string>(
       (v) => String(v ?? ''),
-      (_, s) => (s === '' ? undefined : Number(s)),
+      (_s, _) => (_s === '' ? undefined : Number(_s)),
     )
     expect(n.focus(asString).get()).toBe('42')
   })
@@ -171,7 +171,7 @@ describe('product.narrow and compositions', () => {
     const n = p.narrow(positiveFirst)
     const asString = lens<number | undefined, string>(
       (v) => String(v ?? ''),
-      (_, s) => (s === '' ? undefined : Number(s)),
+      (_s, _) => (_s === '' ? undefined : Number(_s)),
     )
     n.focus(asString).set('99')
     expect(a.get()).toBe(99)
