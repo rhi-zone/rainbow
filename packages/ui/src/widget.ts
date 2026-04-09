@@ -91,6 +91,22 @@ function _track<T>(fn: () => T): [T, () => void] {
   return [result, () => { for (const f of list) f() }]
 }
 
+/**
+ * Run `fn` in an explicit cleanup scope. Returns the result and a dispose
+ * function. Use at the top level (bootstrap, app root) where there is no
+ * enclosing widget context for `register()` calls to land in.
+ *
+ * @example
+ * const [, disposeApp] = withScope(() => {
+ *   register(disposeInit)
+ *   renderContactList(sidebar)
+ *   renderDetailPanel(detail)
+ * })
+ */
+export function withScope<T>(fn: () => T): [T, () => void] {
+  return _track(fn)
+}
+
 /** Minimal interface satisfied by both Signal<T> and ReadonlySignal<T>. */
 type Subscribable<T> = Pick<Signal<T> | ReadonlySignal<T>, "subscribe">
 
