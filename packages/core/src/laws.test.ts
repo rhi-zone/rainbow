@@ -68,14 +68,14 @@ describe('Lens laws', () => {
   // index laws
   it('index(0) focuses on first element of a pair', () => {
     fc.assert(fc.property(fc.integer(), fc.string(), (a, b) => {
-      const l = index<[number, string]>(0)
+      const l = index<[number, string], 0>(0)
       return l.view([a, b]) === a && JSON.stringify(l.review(99, [a, b])) === JSON.stringify([99, b])
     }))
   })
 
   it('index(1) focuses on second element of a pair', () => {
     fc.assert(fc.property(fc.integer(), fc.string(), (a, b) => {
-      const l = index<[number, string]>(1)
+      const l = index<[number, string], 1>(1)
       return l.view([a, b]) === b && JSON.stringify(l.review('z', [a, b])) === JSON.stringify([a, 'z'])
     }))
   })

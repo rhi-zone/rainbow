@@ -43,10 +43,10 @@ describe('composeLens', () => {
 })
 
 describe('index', () => {
-  it('gets element at index 0', () => expect(index<[number, string]>(0).view([1, 'a'])).toBe(1))
-  it('sets element at index 0', () => expect(index<[number, string]>(0).review(2, [1, 'a'])).toEqual([2, 'a']))
-  it('gets element at index 1', () => expect(index<[number, string]>(1).view([1, 'a'])).toBe('a'))
-  it('sets element at index 1', () => expect(index<[number, string]>(1).review('b', [1, 'a'])).toEqual([1, 'b']))
+  it('gets element at index 0', () => expect(index<[number, string], 0>(0).view([1, 'a'])).toBe(1))
+  it('sets element at index 0', () => expect(index<[number, string], 0>(0).review(2, [1, 'a'])).toEqual([2, 'a']))
+  it('gets element at index 1', () => expect(index<[number, string], 1>(1).view([1, 'a'])).toBe('a'))
+  it('sets element at index 1', () => expect(index<[number, string], 1>(1).review('b', [1, 'a'])).toEqual([1, 'b']))
 })
 
 describe('id', () => {

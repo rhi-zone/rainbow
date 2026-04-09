@@ -9,6 +9,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 import { signal, lens, prism, iso, index, field, product, notAsked, loading, failure, success } from "@rhi-zone/rainbow"
 import type { Signal, ReadonlySignal } from "@rhi-zone/rainbow"
 import type { Widget } from "./widget.js"
+import type { DivEl } from "./html.js"
 import {
   mount,
   focus,
@@ -291,7 +292,7 @@ describe("beside", () => {
     const root = makeRoot()
     const s = signal<[string, string]>(["a", "b"])
     const unmount = mount(beside(textWidget, textWidget), s, root)
-    s.focus(index<[string, string]>(0)).set("X")
+    s.focus(index<[string, string], 0>(0)).set("X")
     const spans = root.querySelectorAll("span")
     expect(spans[0]?.textContent).toBe("X")
     expect(spans[1]?.textContent).toBe("b")
@@ -621,7 +622,7 @@ describe("templ", () => {
   it("renders template with refs on initial mount", () => {
     const root = makeRoot()
     const s = signal<Item>({ label: "score", value: 42 })
-    const w = template(
+    const w: Widget<Item, DivEl> = template(
       `<div class="card"><span data-ref="name"></span><b data-ref="score"></b></div>`,
       { name: "span", score: "b" } as const,
       (sig, { name, score }) => {
@@ -638,7 +639,7 @@ describe("templ", () => {
   it("updates refs via subscription", () => {
     const root = makeRoot()
     const s = signal<Item>({ label: "score", value: 42 })
-    const w = template(
+    const w: Widget<Item, DivEl> = template(
       `<div class="card"><span data-ref="name"></span><b data-ref="score"></b></div>`,
       { name: "span", score: "b" } as const,
       (sig, { name, score }) => {
@@ -661,7 +662,7 @@ describe("templ", () => {
     const root = makeRoot()
     const s1 = signal<Item>({ label: "a", value: 1 })
     const s2 = signal<Item>({ label: "b", value: 2 })
-    const makeW = () => template(
+    const makeW = (): Widget<Item, DivEl> => template(
       `<div><span data-ref="lbl"></span></div>`,
       { lbl: "span" } as const,
       (sig, { lbl }) => {
@@ -686,7 +687,7 @@ describe("templ", () => {
     const root = makeRoot()
     const s = signal<Item>({ label: "a", value: 1 })
     let calls = 0
-    const w = template(
+    const w: Widget<Item, DivEl> = template(
       `<div><span data-ref="lbl"></span></div>`,
       { lbl: "span" } as const,
       (sig, { lbl }) => {
@@ -1047,7 +1048,7 @@ describe("bindAttr", () => {
   it("sets initial attribute value from signal", () => {
     const root = makeRoot()
     const s = signal("https://example.com/img.png")
-    const w: Widget<string> = (sig) => {
+    const w: Widget<string, h.AnyEl> = (sig) => {
       const node = document.createElement("img")
       bindAttr(node, "src", sig)
       return { _tag: "img", node } as h.AnyEl

@@ -65,7 +65,7 @@ import type {
  * @typeParam T - The signal value type
  * @typeParam E - The element type produced (defaults to FlowContent)
  */
-export type Widget<T, E extends AnyEl = FlowContent> = (signal: Signal<T> | ReadonlySignal<T>) => E
+export type Widget<T, E extends AnyEl = FlowContent> = (signal: Signal<T>) => E
 
 // ── Cleanup context ───────────────────────────────────────────────────────────
 
@@ -148,7 +148,7 @@ export function mount<T, E extends AnyEl>(
   signal: Signal<T> | ReadonlySignal<T>,
   container: HTMLElement,
 ): () => void {
-  const [el, cleanup] = _track(() => widget(signal))
+  const [el, cleanup] = _track(() => widget(signal as Signal<T>))
   container.appendChild(el.node)
   return () => {
     el.node.remove()
@@ -255,7 +255,7 @@ export function each<A>(w: Widget<A, FlowContent>): Widget<A[], DivEl> {
         const idx = i
         const itemLens: Lens<A[], A> = lens(
           (arr) => arr[idx]!,
-          (arr, v) => { const copy = [...arr]; copy[idx] = v; return copy },
+          (v, arr) => { const copy = [...arr]; copy[idx] = v; return copy },
         )
         const itemSignal = wListSignal.focus(itemLens)
         const [child, cleanup] = _track(() => w(itemSignal))
@@ -588,7 +588,7 @@ export function eachKeyed<T>(
   getKey: (item: T) => string,
   widget: (itemSignal: Signal<T>) => AnyEl,
   options?: { container?: keyof HTMLElementTagNameMap },
-): El<keyof HTMLElementTagNameMap, HTMLElement> {
+): AnyEl {
   const tag = options?.container ?? "div"
   const node = document.createElement(tag)
   node.dataset["eachKeyed"] = ""
@@ -672,7 +672,7 @@ export function eachKeyed<T>(
   subscribe(s, update)
   _register(() => { for (const entry of cache.values()) entry.cleanup() })
 
-  return { _tag: tag, node }
+  return { _tag: tag, node } as AnyEl
 }
 
 // ── Event helper ──────────────────────────────────────────────────────────────

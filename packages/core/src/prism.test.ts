@@ -84,8 +84,8 @@ describe('nullable', () => {
 
 describe('tagged', () => {
   type Shape = { kind: 'circle'; r: number } | { kind: 'rect'; w: number; h: number }
-  const circle = tagged<Shape>('kind', 'circle')
-  const rect   = tagged<Shape>('kind', 'rect')
+  const circle = tagged<Shape, 'kind', 'circle'>('kind', 'circle')
+  const rect   = tagged<Shape, 'kind', 'rect'>('kind', 'rect')
 
   it('matches the correct variant', () => {
     expect(circle.view({ kind: 'circle', r: 3 })).toEqual({ kind: 'circle', r: 3 })

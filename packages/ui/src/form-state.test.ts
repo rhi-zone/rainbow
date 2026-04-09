@@ -155,7 +155,7 @@ describe("createForm > handleSubmit", () => {
     const { handleSubmit } = createForm({
       defaults,
       validate: (v) => ({
-        fieldErrors: { name: v.name === "" ? ["Required"] : undefined },
+        fieldErrors: v.name === "" ? { name: ["Required"] } : {},
       }),
     })
     let called = false
@@ -206,7 +206,7 @@ describe("createForm > reset", () => {
   it("restores all state to defaults", () => {
     const { state, handleSubmit, reset } = createForm({
       defaults,
-      validate: (v) => ({ fieldErrors: { name: v.name === "" ? ["Required"] : undefined } }),
+      validate: (v) => ({ fieldErrors: v.name === "" ? { name: ["Required"] } : {} }),
     })
     handleSubmit(async () => {})()
     reset()
@@ -290,7 +290,7 @@ describe("createForm > reinitialize", () => {
   it("clears fieldErrors, formErrors, touched, submitCount, submitting", () => {
     const { state, handleSubmit, reinitialize } = createForm({
       defaults,
-      validate: (v) => ({ fieldErrors: { name: v.name === "" ? ["Required"] : undefined } }),
+      validate: (v) => ({ fieldErrors: v.name === "" ? { name: ["Required"] } : {} }),
     })
     handleSubmit(async () => {})()
     reinitialize({ name: "Charlie", email: "charlie@example.com" })

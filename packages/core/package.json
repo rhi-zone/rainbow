@@ -1,6 +1,6 @@
 {
   "name": "@rhi-zone/rainbow",
-  "version": "0.1.0",
+  "version": "0.2.0-alpha.0",
   "description": "Optics-based reactivity — structured state for the web",
   "type": "module",
   "main": "./dist/rainbow.umd.cjs",

@@ -101,7 +101,7 @@ export function shouldShowError<T>(state: FormState<T>, key: keyof T & string): 
  */
 export function isFormValid<T>(state: FormState<T>): boolean {
   if (state.formErrors.length > 0) return false
-  return Object.values(state.fieldErrors).every(
+  return (Object.values(state.fieldErrors) as (string[] | undefined)[]).every(
     (errs) => !errs || errs.length === 0,
   )
 }

@@ -1,6 +1,6 @@
 {
   "name": "@rhi-zone/rainbow-ui",
-  "version": "0.0.1",
+  "version": "0.2.0-alpha.0",
   "description": "Type-safe DOM factories and algebraic widget combinators for rainbow",
   "type": "module",
   "types": "./dist/index.d.ts",

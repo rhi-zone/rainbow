@@ -212,7 +212,7 @@ describe('fromAsyncImperative', () => {
 
 describe('toNextValue', () => {
   test('resolves immediately if current value matches predicate', async () => {
-    const s = signal(success<number, never>(5))
+    const s = signal(success<number>(5))
     const result = await toNextValue(s, isSuccess)
     expect(result).toEqual(success(5))
   })
