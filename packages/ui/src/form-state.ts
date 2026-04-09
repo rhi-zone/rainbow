@@ -29,7 +29,9 @@
 
 import { signal, field } from "@rhi-zone/rainbow"
 import type { Signal } from "@rhi-zone/rainbow"
-import type { Widget, AnyEl } from "./widget.js"
+import { subscribe, inputWidget, textareaWidget } from "./widget.js"
+import type { Widget } from "./widget.js"
+import type { AnyEl } from "./html.js"
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -165,6 +167,34 @@ export function createForm<T extends object>(options: {
    * across different records (e.g. switching between contacts).
    */
   readonly reinitialize: (newDefaults: T) => void
+  /**
+   * Build a fully-wired form field element: wrapper div → label → input (or
+   * textarea when `rows` is set) → error span.
+   *
+   * The input is bound to `state` via `bind`. A `focusout` listener marks the
+   * field as touched. The error span is shown when
+   * `(touched[key] || submitCount > 0) && fieldErrors[key]?.length > 0`.
+   *
+   * Must be called inside a widget rendering context (i.e. inside a `mount`
+   * call or another widget) so that the `subscribe` for error display is
+   * tracked for cleanup.
+   *
+   * @example
+   * mount(
+   *   stack(
+   *     (s) => form.field("name",  "Full name"),
+   *     (s) => form.field("email", "Email", { type: "email" }),
+   *     (s) => form.field("bio",   "Bio",   { rows: 4 }),
+   *   ),
+   *   form.state,
+   *   root,
+   * )
+   */
+  readonly field: (
+    key: keyof T & string,
+    label: string,
+    options?: { type?: "text" | "email" | "tel" | "password" | "number" | "search"; rows?: number },
+  ) => HTMLElement
 } {
   const { defaults, validate } = options
   const state = signal(createFormState(defaults))
@@ -238,5 +268,43 @@ export function createForm<T extends object>(options: {
     state.set(createFormState(newDefaults))
   }
 
-  return { state, bind, handleSubmit, reset, setErrors, reinitialize }
+  const fieldEl = (
+    key: keyof T & string,
+    labelText: string,
+    options?: { type?: "text" | "email" | "tel" | "password" | "number" | "search"; rows?: number },
+  ): HTMLElement => {
+    const wrapper = document.createElement("div")
+    wrapper.className = "form-field"
+
+    const labelNode = document.createElement("label")
+    labelNode.textContent = labelText
+    wrapper.appendChild(labelNode)
+
+    const widget = options?.rows != null
+      ? bind(key as keyof T & string, textareaWidget({ rows: options.rows }) as Widget<T[keyof T & string], AnyEl>)
+      : bind(key as keyof T & string, inputWidget({ type: options?.type ?? "text" }) as Widget<T[keyof T & string], AnyEl>)
+
+    const el = (widget as Widget<FormState<T>, AnyEl>)(state)
+    wrapper.appendChild(el.node)
+
+    el.node.addEventListener("focusout", () => {
+      const s = state.get()
+      state.set({ ...s, touched: { ...s.touched, [key]: true } })
+    })
+
+    const errorSpan = document.createElement("span")
+    errorSpan.className = "field-error"
+    errorSpan.style.display = "none"
+    wrapper.appendChild(errorSpan)
+
+    subscribe(state, (s: FormState<T>) => {
+      const show = shouldShowError(s, key)
+      errorSpan.style.display = show ? "" : "none"
+      errorSpan.textContent = s.fieldErrors[key]?.[0] ?? ""
+    })
+
+    return wrapper
+  }
+
+  return { state, bind, handleSubmit, reset, setErrors, reinitialize, field: fieldEl }
 }
