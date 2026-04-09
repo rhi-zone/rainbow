@@ -786,6 +786,46 @@ export function bindClass(
   _register(s.subscribe((v) => { el.classList.toggle(className, v) }))
 }
 
+/**
+ * Subscribe to multiple signals and run `fn` whenever any of them changes.
+ * Calls `fn()` immediately on invocation, then re-runs on each change.
+ * Returns a cleanup function that unsubscribes from all signals.
+ *
+ * Replaces the repetitive `subscribe(a, fn); subscribe(b, fn); fn()` pattern
+ * when a single side-effectful function depends on N signals.
+ *
+ * @example
+ * const stop = watchAll([contacts, panel, searchQuery, sortBy], renderList)
+ * // later:
+ * stop()
+ */
+export function watchAll(
+  signals: ReadonlyArray<ReadonlySignal<unknown>>,
+  fn: () => void,
+): () => void {
+  fn()
+  const unsubs = signals.map((s) => s.subscribe(fn))
+  return () => { for (const u of unsubs) u() }
+}
+
+/**
+ * Show or hide `el` (via `style.display`) based on the boolean signal `s`.
+ * Sets `display` to `""` when `s` is true, `"none"` when false.
+ * Applies the initial value synchronously on call.
+ * Returns a cleanup function that unsubscribes the signal.
+ *
+ * Use `signal.map(...)` to derive the boolean from a richer signal:
+ *
+ * @example
+ * const stop = bindShow(viewPanel, panel.map(p => p.mode === 'viewing'))
+ * // later:
+ * stop()
+ */
+export function bindShow(el: HTMLElement, s: ReadonlySignal<boolean>): () => void {
+  el.style.display = s.get() ? "" : "none"
+  return s.subscribe((v) => { el.style.display = v ? "" : "none" })
+}
+
 // ── AsyncData combinator ──────────────────────────────────────────────────────
 
 /**
