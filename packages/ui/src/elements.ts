@@ -7,62 +7,121 @@
  * `<my-card label="Alice" count="3">` works from plain HTML, and
  * `el.label = "Bob"` works from JavaScript, both updating the widget reactively.
  *
- * Shadow DOM is opt-in (defaults to "open"). Styles are applied via
- * `adoptedStyleSheets` when shadow DOM is used.
+ * Attributes are treated as a boundary adapter: HTML attributes are always
+ * `string | null`, and `AttrSchema<T>` maps each observed attribute to an
+ * `Optic<string | null, T[K]>` that parses (view) and serialises (review) it.
+ *
+ * Shadow DOM defaults to "open". Styles are applied via `adoptedStyleSheets`
+ * when shadow DOM is used.
  */
 
 import { signal } from "@rhi-zone/rainbow"
 import type { Signal } from "@rhi-zone/rainbow"
+import type { Optic } from "@rhi-zone/rainbow"
 import { mount } from "./widget.js"
 import type { AnyEl } from "./html.js"
 import type { Widget } from "./widget.js"
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// ── AttrSchema ────────────────────────────────────────────────────────────────
 
 /**
- * The declared JS type of an observed attribute.
- * - `"string"`  — passed through as-is
- * - `"number"`  — coerced via `Number(val)`; absent attr resets to default
- * - `"boolean"` — presence attribute: `""` or `"true"` → `true`, absent/`"false"` → `false`
- * - `"json"`    — `JSON.parse(val)`; escape hatch for structured data
+ * Maps field names of `T` to optics that convert between `string | null`
+ * (raw HTML attribute) and `T[K]` (typed signal field).
+ *
+ * - `optic.view(raw)`    — parse attribute string into `T[K]`;
+ *                          `undefined` means use `defaults[K]`
+ * - `optic.review(v, _)` — serialise `T[K]` back to a string for reflection
  */
-export type AttrType = "string" | "number" | "boolean" | "json"
+export type AttrSchema<T> = {
+  [K in keyof T]?: Optic<string | null, T[K]>
+}
 
-/** Maps a field value type to the attr types that can represent it. */
-type CompatibleAttrType<V> =
-  [V] extends [string]  ? "string" | "json" :
-  [V] extends [number]  ? "number" | "json" :
-  [V] extends [boolean] ? "boolean" | "json" :
-  "json"
+// ── Standard attribute optics ──────────────────────────────────────────────────
 
 /**
- * Map of attribute names to their declared types. Only fields of `T` may be
- * listed, and each type tag must be compatible with the field's value type.
+ * Pass-through: `view` returns the raw string, or `undefined` when absent.
+ * `review` returns the value unchanged.
  */
-export type AttrsMap<T> = {
-  readonly [K in keyof T & string]?: CompatibleAttrType<T[K]>
+export const attrString: Optic<string | null, string> = {
+  view(raw) { return raw ?? undefined },
+  review(v) { return v },
 }
 
-export interface DefineElementOptions<T> {
-  /**
-   * Shadow DOM mode. `"open"` (default) or `"closed"` creates a shadow root;
-   * `false` renders into light DOM (useful when global styles must reach in).
-   */
-  readonly shadow?: "open" | "closed" | false
-  /**
-   * Observed attributes and their JS types. Each listed attr is reflected as a
-   * JS property accessor on the element class.
-   */
-  readonly attrs?: AttrsMap<T>
-  /**
-   * Styles to adopt into the shadow root via `adoptedStyleSheets`. Accepts a
-   * `CSSStyleSheet`, a CSS string (converted with `CSSStyleSheet.replaceSync`),
-   * or an array of either. No-op when `shadow` is `false`.
-   */
-  readonly styles?: CSSStyleSheet | string | (CSSStyleSheet | string)[]
+/**
+ * Numeric attribute: `view` converts with `Number()`; returns `undefined` on
+ * absent attribute or NaN. `review` serialises with `String()`.
+ */
+export const attrNumber: Optic<string | null, number> = {
+  view(raw) {
+    if (raw == null) return undefined
+    const n = Number(raw)
+    return isNaN(n) ? undefined : n
+  },
+  review(v) { return String(v) },
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+/**
+ * Boolean attribute: absent → `undefined`; `"false"` or `"0"` → `false`;
+ * anything else → `true`. `review` serialises with `String()`.
+ */
+export const attrBoolean: Optic<string | null, boolean> = {
+  view(raw) {
+    if (raw == null) return undefined
+    return raw !== "false" && raw !== "0"
+  },
+  review(v) { return String(v) },
+}
+
+/**
+ * JSON attribute: `view` parses with `JSON.parse`; returns `undefined` on
+ * absent attribute or parse error. `review` serialises with `JSON.stringify`.
+ */
+export function attrJson<T>(): Optic<string | null, T> {
+  return {
+    view(raw) {
+      if (raw == null) return undefined
+      try { return JSON.parse(raw) as T } catch { return undefined }
+    },
+    review(v) { return JSON.stringify(v) },
+  }
+}
+
+// ── attrsFrom ──────────────────────────────────────────────────────────────────
+
+/**
+ * Subset of `AttrSchema<T>` containing only the primitive fields of `T`
+ * (`string | number | boolean`).
+ */
+export type PrimitiveAttrSchema<T> = {
+  [K in keyof T as T[K] extends string | number | boolean ? K : never]: Optic<
+    string | null,
+    T[K]
+  >
+}
+
+/**
+ * Auto-derive an `AttrSchema` from `defaults` for all primitive fields
+ * (`string`, `number`, `boolean`). Complex fields are excluded.
+ *
+ * @example
+ * // Zero repetition for primitive-only T:
+ * attrs: attrsFrom(defaults)
+ *
+ * // Mixed case — spread and add complex fields:
+ * attrs: { ...attrsFrom(defaults), createdAt: attrJson<Date>() }
+ */
+export function attrsFrom<T extends object>(defaults: T): PrimitiveAttrSchema<T> {
+  const result: Record<string, Optic<string | null, unknown>> = {}
+  for (const key of Object.keys(defaults) as (keyof T & string)[]) {
+    const kind = typeof defaults[key]
+    if (kind === "string")  { result[key] = attrString as Optic<string | null, unknown> }
+    else if (kind === "number")  { result[key] = attrNumber as Optic<string | null, unknown> }
+    else if (kind === "boolean") { result[key] = attrBoolean as Optic<string | null, unknown> }
+  }
+  return result as unknown as PrimitiveAttrSchema<T>
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
 function toStyleSheet(s: CSSStyleSheet | string): CSSStyleSheet {
   if (typeof s === "string") {
@@ -73,36 +132,21 @@ function toStyleSheet(s: CSSStyleSheet | string): CSSStyleSheet {
   return s
 }
 
-function coerceAttr(
-  type: AttrType,
-  val: string | null,
-  defaultValue: unknown,
-): unknown {
-  if (val === null) {
-    // Absent attribute — reset to default for number/string; false for boolean
-    return type === "boolean" ? false : defaultValue
-  }
-  switch (type) {
-    case "string":  return val
-    case "number":  return Number(val)
-    case "boolean": return val === "" || val === "true"
-    case "json":    try { return JSON.parse(val) } catch { return defaultValue }
-  }
-}
-
-// ── defineElement ──────────────────────────────────────────────────────────
+// ── defineElement ──────────────────────────────────────────────────────────────
 
 /**
  * Register a custom element backed by a `Widget<T>`.
  *
- * The element's signal starts from `defaults`. Declared attrs are observed and
- * coerced into signal fields on each attribute change. JS property accessors
- * are defined for each declared attr so `el.count = 5` and
- * `el.setAttribute("count", "5")` both update the signal.
+ * The element's signal starts from `defaults`. Attributes listed in `attrs`
+ * are observed; each attribute change is parsed via the corresponding optic's
+ * `view` method and written into the signal. All fields of `T` get JS property
+ * accessors regardless of whether they appear in `attrs`.
  *
  * @example
- * defineElement("score-card", scoreCardWidget, { label: "", score: 0 }, {
- *   attrs: { label: "string", score: "number" },
+ * defineElement("score-card", {
+ *   widget: scoreCardWidget,
+ *   defaults: { label: "", score: 0 },
+ *   attrs: { label: attrString, score: attrNumber },
  *   styles: `:host { display: block; font-family: sans-serif }`,
  * })
  *
@@ -111,11 +155,21 @@ function coerceAttr(
  */
 export function defineElement<T extends object>(
   tagName: string,
-  widget: Widget<T, AnyEl>,
-  defaults: T,
-  options: DefineElementOptions<T> = {},
+  config: {
+    widget: Widget<T, AnyEl>
+    defaults: T
+    attrs?: AttrSchema<T>
+    shadow?: "open" | "closed" | false
+    styles?: CSSStyleSheet | string | (CSSStyleSheet | string)[]
+  },
 ): void {
-  const { shadow = "open", attrs = {} as AttrsMap<T>, styles } = options
+  const {
+    widget,
+    defaults,
+    attrs = {} as AttrSchema<T>,
+    shadow = "open",
+    styles,
+  } = config
 
   const attrNames = Object.keys(attrs) as (keyof T & string)[]
 
@@ -155,19 +209,19 @@ export function defineElement<T extends object>(
     attributeChangedCallback(
       name: string,
       _old: string | null,
-      val: string | null,
+      raw: string | null,
     ): void {
-      const attrType = attrs[name as keyof T & string]
-      if (attrType == null) return
-      const coerced = coerceAttr(attrType, val, defaults[name as keyof T])
-      this._rb_signal.set({ ...this._rb_signal.get(), [name]: coerced })
+      const optic = attrs[name as keyof T & string]
+      if (optic == null) return
+      const parsed = optic.view(raw) ?? defaults[name as keyof T]
+      this._rb_signal.set({ ...this._rb_signal.get(), [name]: parsed })
     }
   }
 
-  // JS property accessors — one per declared attr.
+  // JS property accessors — one per field in T (not just observed attrs).
   // Must be defined outside the class body so the loop variable `name` is
   // captured correctly per iteration (not shared across iterations).
-  for (const name of attrNames) {
+  for (const name of Object.keys(defaults) as (keyof T & string)[]) {
     Object.defineProperty(RainbowElement.prototype, name, {
       get(this: RainbowElement): unknown {
         return this._rb_signal.get()[name as keyof T]

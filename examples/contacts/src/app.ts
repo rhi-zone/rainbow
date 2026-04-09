@@ -23,7 +23,7 @@ import {
   type Widget,
 } from "@rhi-zone/rainbow-ui/widget"
 import { createForm } from "@rhi-zone/rainbow-ui/form-state"
-import { defineElement } from "@rhi-zone/rainbow-ui/elements"
+import { defineElement, attrString, attrBoolean } from "@rhi-zone/rainbow-ui/elements"
 
 import {
   contacts,
@@ -101,8 +101,10 @@ const contactCardWidget: Widget<ContactCardProps> = (s) => {
   return { _tag: "div", node: root }
 }
 
-defineElement("contact-card", contactCardWidget, { name: "", email: "", phone: "", selected: false }, {
-  attrs: { name: "string", email: "string", phone: "string", selected: "boolean" },
+defineElement("contact-card", {
+  widget: contactCardWidget,
+  defaults: { name: "", email: "", phone: "", selected: false },
+  attrs: { name: attrString, email: attrString, phone: attrString, selected: attrBoolean },
   styles: `
     :host { display: block; padding: 8px; cursor: pointer; border-bottom: 1px solid #eee; }
     :host(.selected) { background: #eef; }

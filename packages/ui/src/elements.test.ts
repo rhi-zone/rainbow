@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeEach } from "vitest"
-import { signal } from "@rhi-zone/rainbow"
+import { describe, it, expect } from "vitest"
 import type { Signal } from "@rhi-zone/rainbow"
 import { subscribe } from "./widget.js"
-import { defineElement } from "./elements.js"
+import { defineElement, attrString, attrNumber, attrBoolean } from "./elements.js"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -29,8 +28,10 @@ function makeCardWidget(onRender: (sig: Signal<Card>) => void) {
 describe("defineElement", () => {
   it("renders widget content into shadow root on connection", () => {
     const t = tag()
-    defineElement(t, makeCardWidget(() => {}), cardDefaults, {
-      attrs: { label: "string", count: "number", active: "boolean" },
+    defineElement(t, {
+      widget: makeCardWidget(() => {}),
+      defaults: cardDefaults,
+      attrs: { label: attrString, count: attrNumber, active: attrBoolean },
     })
     const el = document.createElement(t)
     document.body.appendChild(el)
@@ -41,8 +42,10 @@ describe("defineElement", () => {
   it("reflects initial attributes into signal before first render", () => {
     const t = tag()
     let captured: Card | undefined
-    defineElement(t, makeCardWidget((s) => { captured = s.get() }), cardDefaults, {
-      attrs: { label: "string", count: "number", active: "boolean" },
+    defineElement(t, {
+      widget: makeCardWidget((s) => { captured = s.get() }),
+      defaults: cardDefaults,
+      attrs: { label: attrString, count: attrNumber, active: attrBoolean },
     })
     const el = document.createElement(t)
     el.setAttribute("label", "Alice")
@@ -55,8 +58,10 @@ describe("defineElement", () => {
 
   it("updates signal and DOM when attribute changes", () => {
     const t = tag()
-    defineElement(t, makeCardWidget(() => {}), cardDefaults, {
-      attrs: { label: "string", count: "number" },
+    defineElement(t, {
+      widget: makeCardWidget(() => {}),
+      defaults: cardDefaults,
+      attrs: { label: attrString, count: attrNumber },
     })
     const el = document.createElement(t)
     document.body.appendChild(el)
@@ -68,8 +73,10 @@ describe("defineElement", () => {
   it("coerces number attributes", () => {
     const t = tag()
     let captured: Card | undefined
-    defineElement(t, makeCardWidget((s) => { captured = s.get() }), cardDefaults, {
-      attrs: { count: "number" },
+    defineElement(t, {
+      widget: makeCardWidget((s) => { captured = s.get() }),
+      defaults: cardDefaults,
+      attrs: { count: attrNumber },
     })
     const el = document.createElement(t)
     el.setAttribute("count", "42")
@@ -82,8 +89,10 @@ describe("defineElement", () => {
   it("coerces boolean attributes — presence = true", () => {
     const t = tag()
     let captured: Card | undefined
-    defineElement(t, makeCardWidget((s) => { captured = s.get() }), cardDefaults, {
-      attrs: { active: "boolean" },
+    defineElement(t, {
+      widget: makeCardWidget((s) => { captured = s.get() }),
+      defaults: cardDefaults,
+      attrs: { active: attrBoolean },
     })
     const el = document.createElement(t)
     el.setAttribute("active", "")  // presence attribute
@@ -95,8 +104,10 @@ describe("defineElement", () => {
   it("coerces boolean attributes — absent = false", () => {
     const t = tag()
     let captured: Card | undefined
-    defineElement(t, makeCardWidget((s) => { captured = s.get() }), cardDefaults, {
-      attrs: { active: "boolean" },
+    defineElement(t, {
+      widget: makeCardWidget((s) => { captured = s.get() }),
+      defaults: cardDefaults,
+      attrs: { active: attrBoolean },
     })
     const el = document.createElement(t)
     document.body.appendChild(el)
@@ -109,8 +120,10 @@ describe("defineElement", () => {
 
   it("JS property setter updates signal", () => {
     const t = tag()
-    defineElement(t, makeCardWidget(() => {}), cardDefaults, {
-      attrs: { label: "string", count: "number" },
+    defineElement(t, {
+      widget: makeCardWidget(() => {}),
+      defaults: cardDefaults,
+      attrs: { label: attrString, count: attrNumber },
     })
     const el = document.createElement(t) as HTMLElement & { label: string; count: number }
     document.body.appendChild(el)
@@ -121,8 +134,10 @@ describe("defineElement", () => {
 
   it("JS property getter reads current signal value", () => {
     const t = tag()
-    defineElement(t, makeCardWidget(() => {}), cardDefaults, {
-      attrs: { count: "number" },
+    defineElement(t, {
+      widget: makeCardWidget(() => {}),
+      defaults: cardDefaults,
+      attrs: { count: attrNumber },
     })
     const el = document.createElement(t) as HTMLElement & { count: number }
     document.body.appendChild(el)
@@ -139,7 +154,7 @@ describe("defineElement", () => {
       subscribe(sig, () => { subCalls++ })
       return { _tag: "div" as const, node }
     }
-    defineElement(t, w, cardDefaults, { attrs: { count: "number" } })
+    defineElement(t, { widget: w, defaults: cardDefaults, attrs: { count: attrNumber } })
     const el = document.createElement(t)
     document.body.appendChild(el)
     el.remove()  // triggers disconnectedCallback → cleanup
@@ -150,8 +165,10 @@ describe("defineElement", () => {
 
   it("remounts correctly on reconnection", () => {
     const t = tag()
-    defineElement(t, makeCardWidget(() => {}), cardDefaults, {
-      attrs: { label: "string" },
+    defineElement(t, {
+      widget: makeCardWidget(() => {}),
+      defaults: cardDefaults,
+      attrs: { label: attrString },
     })
     const el = document.createElement(t)
     document.body.appendChild(el)
@@ -164,9 +181,11 @@ describe("defineElement", () => {
 
   it("light DOM mode renders into element itself", () => {
     const t = tag()
-    defineElement(t, makeCardWidget(() => {}), cardDefaults, {
+    defineElement(t, {
+      widget: makeCardWidget(() => {}),
+      defaults: cardDefaults,
       shadow: false,
-      attrs: { label: "string" },
+      attrs: { label: attrString },
     })
     const el = document.createElement(t)
     document.body.appendChild(el)
@@ -177,7 +196,9 @@ describe("defineElement", () => {
 
   it("applies CSS string as adoptedStyleSheets on shadow root", () => {
     const t = tag()
-    defineElement(t, makeCardWidget(() => {}), cardDefaults, {
+    defineElement(t, {
+      widget: makeCardWidget(() => {}),
+      defaults: cardDefaults,
       styles: ":host { display: block }",
     })
     const el = document.createElement(t)
