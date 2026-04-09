@@ -195,6 +195,18 @@ export function createForm<T extends object>(options: {
     label: string,
     options?: { type?: "text" | "email" | "tel" | "password" | "number" | "search"; rows?: number },
   ) => HTMLElement
+  /**
+   * Return a `<div class="form-errors">` that is hidden when `state.formErrors`
+   * is empty, and shows all form-level errors (one `<p>` per error) when
+   * non-empty. Uses `subscribe` to stay reactive.
+   *
+   * Must be called inside a widget rendering context (i.e. inside a `mount`
+   * call or another widget) so that the subscription is tracked for cleanup.
+   *
+   * @example
+   * formEl.appendChild(editFormState.formErrors())
+   */
+  readonly formErrors: () => HTMLElement
 } {
   const { defaults, validate } = options
   const state = signal(createFormState(defaults))
@@ -306,5 +318,26 @@ export function createForm<T extends object>(options: {
     return wrapper
   }
 
-  return { state, bind, handleSubmit, reset, setErrors, reinitialize, field: fieldEl }
+  const formErrorsEl = (): HTMLElement => {
+    const wrapper = document.createElement("div")
+    wrapper.className = "form-errors"
+    wrapper.style.display = "none"
+
+    subscribe(state, (s: FormState<T>) => {
+      const hasErrors = s.formErrors.length > 0
+      wrapper.style.display = hasErrors ? "" : "none"
+      wrapper.textContent = ""
+      if (hasErrors) {
+        for (const msg of s.formErrors) {
+          const p = document.createElement("p")
+          p.textContent = msg
+          wrapper.appendChild(p)
+        }
+      }
+    })
+
+    return wrapper
+  }
+
+  return { state, bind, handleSubmit, reset, setErrors, reinitialize, field: fieldEl, formErrors: formErrorsEl }
 }

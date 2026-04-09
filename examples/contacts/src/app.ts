@@ -9,6 +9,7 @@ import {
   signal,
   fromAsync,
   fold,
+  toNextValue,
   type Signal,
 } from "@rhi-zone/rainbow"
 import {
@@ -18,6 +19,7 @@ import {
   bindShow,
   bindText,
   bindClass,
+  bindInput,
   type Widget,
 } from "@rhi-zone/rainbow-ui/widget"
 import { createForm } from "@rhi-zone/rainbow-ui/form-state"
@@ -116,14 +118,7 @@ function renderContactList(container: HTMLElement): void {
   const searchEl = document.createElement("input")
   searchEl.type = "search"
   searchEl.placeholder = "Search contacts…"
-  searchEl.value = searchQuery.get()
-  // FRICTION: bindInput requires a Signal<string> but searchQuery is already a
-  // focused signal (Signal<string>). This works, but the setup still requires
-  // importing bindInput separately and calling it — there is no "self-binding"
-  // widget that comes pre-wired to a named signal. Contrast with React where
-  // value={x} onChange={setX} is one JSX expression.
-  searchEl.addEventListener("input", () => searchQuery.set(searchEl.value))
-  subscribe(searchQuery, (q) => { if (searchEl.value !== q) searchEl.value = q })
+  bindInput(searchEl, searchQuery)
   container.appendChild(searchEl)
 
   // Contact entries list
@@ -208,6 +203,7 @@ const {
   handleSubmit,
   setErrors,
   field: formField,
+  formErrors: formErrorsEl,
 } = createForm<ContactDraft>({
   defaults: defaultDraft,
   validate: ({ name, email }) => {
@@ -305,19 +301,7 @@ function renderDetailPanel(container: HTMLElement): void {
   formEl.appendChild(formField("phone", "Phone", { type: "tel" }))
   formEl.appendChild(formField("notes", "Notes", { rows: 3 }))
 
-  // Form-level error display
-  const formErrorEl = document.createElement("div")
-  formErrorEl.className = "form-errors"
-  formErrorEl.style.display = "none"
-  // FRICTION: Form-level errors have the same subscribe+display pattern as
-  // field errors. There is no formErrors widget or component; callers write
-  // this identical block in every form.
-  subscribe(editFormState, (s) => {
-    const hasErrors = s.formErrors.length > 0
-    formErrorEl.style.display = hasErrors ? "" : "none"
-    formErrorEl.textContent = s.formErrors.join("; ")
-  })
-  formEl.appendChild(formErrorEl)
+  formEl.appendChild(formErrorsEl())
 
   // Save status indicator
   const saveStatusEl = document.createElement("div")
@@ -362,28 +346,14 @@ function renderDetailPanel(container: HTMLElement): void {
     }
     // Trigger async save
     saveTrigger.set(contact)
-    // Wait for the save to complete by waiting on saveResult
-    // FRICTION: fromAsync provides no Promise-based await path — you must use
-    // subscribe() on saveResult and check inside the callback, or poll. For a
-    // handleSubmit callback that needs to "await" the save before continuing,
-    // there is no clean bridge. We settle for a manual promise wrapper.
-    await new Promise<void>((resolve, reject) => {
-      const unsub = saveResult.subscribe((r) => {
-        if (r.status === "success") {
-          unsub()
-          if (p.mode === "editing") {
-            updateContact(p.contactId, draft)
-          } else {
-            createContact(draft)
-          }
-          saveEdit()
-          resolve()
-        } else if (r.status === "failure") {
-          unsub()
-          reject(r.error)
-        }
-      })
-    })
+    const r = await toNextValue(saveResult, (v) => v.status === "success" || v.status === "failure")
+    if (r.status === "failure") { throw r.error }
+    if (p.mode === "editing") {
+      updateContact(p.contactId, draft)
+    } else {
+      createContact(draft)
+    }
+    saveEdit()
   }))
 
   editPanel.appendChild(formEl)

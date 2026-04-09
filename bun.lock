@@ -8,6 +8,20 @@
         "@typescript/native-preview": "latest",
       },
     },
+    "examples/async-gallery": {
+      "name": "@rhi-zone/rainbow-example-async-gallery",
+      "dependencies": {
+        "@rhi-zone/rainbow": "workspace:*",
+        "@rhi-zone/rainbow-ui": "workspace:*",
+      },
+    },
+    "examples/contacts": {
+      "name": "@rhi-zone/rainbow-example-contacts",
+      "dependencies": {
+        "@rhi-zone/rainbow": "workspace:*",
+        "@rhi-zone/rainbow-ui": "workspace:*",
+      },
+    },
     "examples/todomvc": {
       "name": "@rhi-zone/rainbow-example-todomvc",
       "dependencies": {
@@ -115,6 +129,10 @@
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.5", "", {}, "sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="],
 
     "@rhi-zone/rainbow": ["@rhi-zone/rainbow@workspace:packages/core"],
+
+    "@rhi-zone/rainbow-example-async-gallery": ["@rhi-zone/rainbow-example-async-gallery@workspace:examples/async-gallery"],
+
+    "@rhi-zone/rainbow-example-contacts": ["@rhi-zone/rainbow-example-contacts@workspace:examples/contacts"],
 
     "@rhi-zone/rainbow-example-todomvc": ["@rhi-zone/rainbow-example-todomvc@workspace:examples/todomvc"],
 

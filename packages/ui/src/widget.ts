@@ -698,17 +698,32 @@ export function on<K extends keyof HTMLElementEventMap>(
 
 /**
  * Two-way bind a text `<input>` or `<textarea>` to a `Signal<string>`.
- * DOM → signal on `input` event; signal → DOM only when the value actually
- * differs (guards against cursor-jump on mid-type updates).
  *
- * Must be called during a widget call context.
+ * Sets `el.value` immediately from the signal, then:
+ * - DOM → signal: `input` event calls `s.set(el.value)`
+ * - signal → DOM: updates `el.value` only when the new value differs
+ *   (guards against cursor-position jumps on mid-type updates)
+ *
+ * When called inside a widget call context, cleanup is registered
+ * automatically. When called outside (e.g. imperative bootstrap), use the
+ * returned cleanup function.
+ *
+ * @returns A cleanup function that unsubscribes and removes the event listener.
  */
 export function bindInput(
   el: HTMLInputElement | HTMLTextAreaElement,
   s: Signal<string>,
-): void {
-  on(el, "input", () => s.set(el.value))
-  subscribe(s, (v) => { if (el.value !== v) el.value = v })
+): () => void {
+  el.value = s.get()
+  const handler = () => s.set(el.value)
+  el.addEventListener("input", handler)
+  const unsub = s.subscribe((v) => { if (el.value !== v) el.value = v })
+  const cleanup = () => {
+    el.removeEventListener("input", handler)
+    unsub()
+  }
+  _register(cleanup)
+  return cleanup
 }
 
 /**
