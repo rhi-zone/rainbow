@@ -11,52 +11,99 @@ and a full Lit replacement.
 `<my-card label="Alice" count="3">` anywhere in HTML, with reactive attribute/
 property binding flowing into a signal.
 
-### Shadow DOM
+### Revised design (April 2026)
 
-Optional per element, defaulting to `"open"`:
+The original design used string tags (`"string"`, `"number"`, `"boolean"`, `"json"`)
+for attribute coercion. These are a bespoke type system that doesn't compose with
+the rest of the optics toolkit.
+
+**Attributes are a boundary adapter.** HTML attributes are always `string | null`.
+Coercing them into typed signal fields is exactly `Optic<string | null, T[K]>`:
+- `view(raw)` — parse attribute string into `T[K]`; `undefined` means use `defaults[K]`
+- `review(value)` — serialize `T[K]` back to a string for `getAttribute` reflection
+
+This framing generalizes: URL search params, `localStorage`, form submissions are
+all the same pattern — stringly-typed external world → typed internal signal.
 
 ```ts
-defineElement("my-card", cardWidget, defaults, {
-  shadow: "open",   // "open" | "closed" | false  (false = light DOM)
-  attrs: { label: "string", count: "number", active: "boolean" },
-  styles: sheet,    // CSSStyleSheet | string | (CSSStyleSheet | string)[]
+type AttrSchema<T> = { [K in keyof T]?: Optic<string | null, T[K]> }
+
+defineElement('my-card', {
+  widget: myWidget,
+  defaults,
+  attrs: { label: attrString, count: attrNumber, active: attrBoolean },
+  styles: `...`,
 })
 ```
 
-Light DOM (`shadow: false`) is useful when global styles need to reach inside.
-Shadow DOM is the default because it's the main reason to use custom elements
-over plain `mount`.
+**Standard attribute optics** (in `@rhi-zone/rainbow-ui/elements`):
 
-### Attribute type coercion
+```ts
+const attrString:  Optic<string | null, string>  // raw ?? undefined (use default on absent)
+const attrNumber:  Optic<string | null, number>  // Number(raw); undefined on null or NaN
+const attrBoolean: Optic<string | null, boolean> // undefined on null; raw !== "false" && raw !== "0"
+const attrJson:    <T>() => Optic<string | null, T>  // JSON.parse; undefined on null or parse error
+```
 
-Attributes are always strings on the wire. Declared types coerce them:
+**`attrsFrom(defaults)`** — auto-derive `AttrSchema<T>` for primitive fields:
 
-- `"string"` — pass through
-- `"number"` — `Number(val)`; `null` attr → signal field reset to default
-- `"boolean"` — presence attribute: `""` or `"true"` → `true`, absent/`"false"` → `false`
-- `"json"` — `JSON.parse(val)` for complex fields (escape hatch; prefer flat attrs)
+```ts
+function attrsFrom<T extends object>(defaults: T): PrimitiveAttrSchema<T>
+// Only includes fields where T[K] extends string | number | boolean.
+// Complex fields are excluded from the return type — TypeScript will flag
+// missing coercions at call sites that spread attrsFrom and need more.
+```
+
+Common case:
+```ts
+attrs: attrsFrom(defaults)  // zero repetition for primitive-only T
+```
+
+Mixed case:
+```ts
+attrs: { ...attrsFrom(defaults), createdAt: attrJson<Date>() }
+```
+
+### Config shape
+
+```ts
+defineElement(tagName: string, config: {
+  widget: Widget<T, AnyEl>
+  defaults: T
+  attrs?: AttrSchema<T>        // omit = no observed attributes (JS-only properties)
+  shadow?: 'open' | 'closed' | false   // default: 'open'
+  styles?: CSSStyleSheet | string | (CSSStyleSheet | string)[]
+}): void
+```
+
+Plain config object — no builder, no method chaining. Composable by factoring
+out the config object and spreading/merging as needed.
 
 ### Property accessors
 
-Declared attrs also generate JS property accessors on the element class so
-`el.count = 5` works alongside `el.setAttribute("count", "5")`. Both paths
-write into the signal via a field lens.
-
-### `T` shape
-
-`T` can be any shape. The `attrs` map only bridges the HTML attribute surface —
-which is inherently flat — into signal fields. Nested state lives entirely in
-the signal and is never exposed as attributes.
+All fields in `T` get JS property accessors regardless of whether they're in
+`attrs`. JS setters write directly into the signal. `attrs` only controls which
+fields are observable as HTML attributes.
 
 ### Lifecycle
 
 ```
-connectedCallback   → mount(widget, signal, shadowRoot ?? this)
+connectedCallback    → mount(widget, signal, shadowRoot ?? this)
 disconnectedCallback → cleanup()
-attributeChangedCallback → coerce + signal.set(lens.set(signal.get(), value))
+attributeChangedCallback(name, _, raw) →
+  const optic = attrs[name]
+  const parsed = optic.view(raw) ?? defaults[name]
+  signal.set({ ...signal.get(), [name]: parsed })
 ```
 
-Adopted styles are applied once in `connectedCallback` before `mount`.
+`review` is used for `getAttribute` reflection: `el.getAttribute(name)` returns
+`optic.review(signal.get()[name])`.
+
+### Shadow DOM
+
+Optional, defaulting to `"open"`. Light DOM (`shadow: false`) is useful when
+global styles need to reach inside. Shadow DOM is the default because it's the
+main reason to use custom elements over plain `mount`.
 
 ---
 
