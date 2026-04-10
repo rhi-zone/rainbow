@@ -41,6 +41,7 @@ import {
   lens,
   index,
   stateful,
+  tagged,
 } from "@rhi-zone/rainbow"
 import {
   input as _input,
@@ -876,6 +877,72 @@ export function bindShow(el: HTMLElement, s: ReadonlySignal<boolean>): () => voi
  *   success:  (data) => renderData(data),
  * })
  */
+/**
+ * Render a discriminated union by tag. Exhaustively maps each variant to a
+ * widget; swaps the rendered child when the tag changes.
+ *
+ * Compared to N `narrow` + `stack` calls:
+ * - Single container div (not N+1)
+ * - Exhaustiveness checked at compile time — missing variant = type error
+ * - No `tagged()` declarations at the call site
+ *
+ * Must be called during a widget call context.
+ *
+ * @example
+ * type Screen =
+ *   | { screen: 'list';   items: Item[] }
+ *   | { screen: 'detail'; item: Item }
+ *
+ * match('screen', {
+ *   list:   (s) => listWidget(s),
+ *   detail: (s) => detailWidget(s),
+ * })
+ */
+export function match<
+  S extends Record<K, string>,
+  K extends keyof S & string,
+>(
+  key: K,
+  cases: { [V in S[K] & string]: Widget<Extract<S, Record<K, V>>, FlowContent> },
+): Widget<S, DivEl> {
+  return (s) => {
+    const node = document.createElement("div")
+    node.dataset["match"] = ""
+
+    let innerCleanup: (() => void) | null = null
+    let activeVariant: string | null = null
+
+    const update = (value: S) => {
+      const variant = value[key] as string
+      if (variant === activeVariant) return // same variant — child subs handle it
+
+      innerCleanup?.()
+      innerCleanup = null
+      node.replaceChildren()
+      activeVariant = variant
+
+      const w = (cases as unknown as Record<string, Widget<S, FlowContent>>)[variant]
+      if (w == null) return
+
+      // Narrow the outer signal to the specific variant.
+      // Safe: `update` is registered on `s` before narrowed's own subscriptions,
+      // so teardown happens before narrowed can fire with an undefined value.
+      const narrowed = (s as Signal<S>).narrow(tagged(key, variant as S[K]))
+      let el: FlowContent
+      ;[el, innerCleanup] = _track(() =>
+        w(narrowed as unknown as Signal<Extract<S, Record<K, typeof variant>>>),
+      )
+      node.appendChild(el.node)
+    }
+
+    subscribe(s, update)
+    update(s.get())
+    _register(() => innerCleanup?.())
+
+    return { _tag: "div", node }
+  }
+}
+
 export function foldWidget<T, E>(
   s: Signal<AsyncData<T, E>> | ReadonlySignal<AsyncData<T, E>>,
   cases: {

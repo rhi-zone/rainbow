@@ -39,6 +39,7 @@ import {
   bindAttr,
   bindClass,
   foldWidget,
+  match,
 } from "./widget.js"
 import * as h from "./html.js"
 
@@ -1221,6 +1222,95 @@ describe("foldWidget", () => {
     const unmount = mount(w, s, root)
     // loading case has no handler — container should be empty
     expect(root.querySelector("[data-fold-widget]")!.children).toHaveLength(0)
+    cleanup(root, unmount)
+  })
+})
+
+// ── match ─────────────────────────────────────────────────────────────────────
+
+type Screen =
+  | { screen: 'list';   items: string[] }
+  | { screen: 'detail'; item: string }
+
+describe("match", () => {
+  const listWidget = (s: Signal<Extract<Screen, { screen: 'list' }>>) => {
+    const node = document.createElement("ul")
+    const render = ({ items }: { items: string[] }) => {
+      node.innerHTML = items.map(i => `<li>${i}</li>`).join("")
+    }
+    render(s.get()); subscribe(s, render)
+    return { _tag: "ul" as const, node }
+  }
+  const detailWidget = (s: Signal<Extract<Screen, { screen: 'detail' }>>) => {
+    const node = document.createElement("p")
+    subscribe(s, ({ item }) => { node.textContent = item })
+    node.textContent = s.get().item
+    return { _tag: "p" as const, node }
+  }
+
+  it("renders the initial variant", () => {
+    const root = makeRoot()
+    const s = signal<Screen>({ screen: 'list', items: ['a', 'b'] })
+    const unmount = mount(match('screen', { list: listWidget, detail: detailWidget }), s, root)
+    expect(root.querySelectorAll("li")).toHaveLength(2)
+    expect(root.querySelector("p")).toBeNull()
+    cleanup(root, unmount)
+  })
+
+  it("swaps child when tag changes", () => {
+    const root = makeRoot()
+    const s = signal<Screen>({ screen: 'list', items: ['a'] })
+    const unmount = mount(match('screen', { list: listWidget, detail: detailWidget }), s, root)
+    s.set({ screen: 'detail', item: 'hello' })
+    expect(root.querySelector("p")!.textContent).toBe("hello")
+    expect(root.querySelector("ul")).toBeNull()
+    cleanup(root, unmount)
+  })
+
+  it("updates within the same variant without remounting", () => {
+    const root = makeRoot()
+    const s = signal<Screen>({ screen: 'detail', item: 'first' })
+    let mounts = 0
+    const countingDetail = (sig: Signal<Extract<Screen, { screen: 'detail' }>>) => {
+      mounts++
+      return detailWidget(sig)
+    }
+    const unmount = mount(match('screen', { list: listWidget, detail: countingDetail }), s, root)
+    s.set({ screen: 'detail', item: 'second' })
+    expect(mounts).toBe(1) // no remount
+    expect(root.querySelector("p")!.textContent).toBe("second")
+    cleanup(root, unmount)
+  })
+
+  it("cleans up subscriptions on unmount", () => {
+    const root = makeRoot()
+    const s = signal<Screen>({ screen: 'list', items: [] })
+    let calls = 0
+    const trackingList = (sig: Signal<Extract<Screen, { screen: 'list' }>>) => {
+      subscribe(sig, () => { calls++ })
+      return listWidget(sig)
+    }
+    const unmount = mount(match('screen', { list: trackingList, detail: detailWidget }), s, root)
+    const before = calls
+    unmount()
+    s.set({ screen: 'list', items: ['x'] })
+    expect(calls).toBe(before) // no calls after unmount
+    cleanup(root, unmount)
+  })
+
+  it("cleans up old variant when switching", () => {
+    const root = makeRoot()
+    const s = signal<Screen>({ screen: 'list', items: [] })
+    let listCalls = 0
+    const trackingList = (sig: Signal<Extract<Screen, { screen: 'list' }>>) => {
+      subscribe(sig, () => { listCalls++ })
+      return listWidget(sig)
+    }
+    const unmount = mount(match('screen', { list: trackingList, detail: detailWidget }), s, root)
+    s.set({ screen: 'detail', item: 'x' }) // switch away
+    const before = listCalls
+    s.set({ screen: 'detail', item: 'y' }) // update in detail — list subs should be dead
+    expect(listCalls).toBe(before)
     cleanup(root, unmount)
   })
 })

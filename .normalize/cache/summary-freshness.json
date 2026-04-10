@@ -1,43 +1,11 @@
 {
-  "head": "cc400262aff1b5ca87e403d3b1f48ffeb9b40821",
+  "head": "13d5b22e08524f9a8bc8e80a31ac14abb9b1ef2b",
   "dirs": {
     ".claude": {
       "last_summary_commit": null,
       "commits_count": 0
     },
-    "examples/todomvc/src": {
-      "last_summary_commit": null,
-      "commits_count": 5
-    },
-    "docs": {
-      "last_summary_commit": null,
-      "commits_count": 10
-    },
-    "packages/core": {
-      "last_summary_commit": null,
-      "commits_count": 12
-    },
-    "examples/contacts": {
-      "last_summary_commit": null,
-      "commits_count": 4
-    },
-    ".": {
-      "last_summary_commit": null,
-      "commits_count": 58
-    },
-    ".github/workflows": {
-      "last_summary_commit": null,
-      "commits_count": 1
-    },
-    "packages/router/src/adapters": {
-      "last_summary_commit": null,
-      "commits_count": 1
-    },
-    ".normalize": {
-      "last_summary_commit": null,
-      "commits_count": 0
-    },
-    "docs/guide": {
+    "docs/api": {
       "last_summary_commit": null,
       "commits_count": 2
     },
@@ -45,13 +13,53 @@
       "last_summary_commit": null,
       "commits_count": 1
     },
-    "examples/todomvc": {
+    "packages/ui": {
       "last_summary_commit": null,
-      "commits_count": 5
+      "commits_count": 27
+    },
+    "packages/ui/src": {
+      "last_summary_commit": null,
+      "commits_count": 26
+    },
+    "packages/router/src": {
+      "last_summary_commit": null,
+      "commits_count": 4
+    },
+    ".normalize/cache": {
+      "last_summary_commit": null,
+      "commits_count": 1
+    },
+    "examples/async-gallery/src": {
+      "last_summary_commit": null,
+      "commits_count": 1
+    },
+    "packages/router/src/adapters": {
+      "last_summary_commit": null,
+      "commits_count": 1
     },
     "examples/contacts/src": {
       "last_summary_commit": null,
       "commits_count": 4
+    },
+    ".normalize": {
+      "last_summary_commit": null,
+      "commits_count": 1
+    },
+    "examples/todomvc/src": {
+      "last_summary_commit": null,
+      "commits_count": 5
+    },
+    "docs/.vitepress": {
+      "last_summary_commit": null,
+      "commits_count": 3
+    },
+    "packages/core": {
+      "last_summary_commit": null,
+      "commits_count": 12
+    },
+    "docs": {
+      "last_summary_commit": null,
+      "commits_count": 10
     },
     "docs/design": {
       "last_summary_commit": null,
@@ -61,37 +69,29 @@
       "last_summary_commit": null,
       "commits_count": 11
     },
-    "examples/async-gallery/src": {
+    ".": {
       "last_summary_commit": null,
-      "commits_count": 1
+      "commits_count": 59
+    },
+    "docs/guide": {
+      "last_summary_commit": null,
+      "commits_count": 2
     },
     "packages/router": {
       "last_summary_commit": null,
       "commits_count": 8
     },
-    "docs/api": {
+    ".github/workflows": {
       "last_summary_commit": null,
-      "commits_count": 2
+      "commits_count": 1
     },
-    "packages/ui/src": {
-      "last_summary_commit": null,
-      "commits_count": 25
-    },
-    ".normalize/cache": {
-      "last_summary_commit": null,
-      "commits_count": 0
-    },
-    "packages/ui": {
-      "last_summary_commit": null,
-      "commits_count": 26
-    },
-    "packages/router/src": {
+    "examples/contacts": {
       "last_summary_commit": null,
       "commits_count": 4
     },
-    "docs/.vitepress": {
+    "examples/todomvc": {
       "last_summary_commit": null,
-      "commits_count": 3
+      "commits_count": 5
     }
   }
 }
