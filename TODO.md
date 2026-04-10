@@ -122,6 +122,32 @@ Also needed: `taggedIn<A, K extends keyof A, V extends A[K]>(key: K, values: V[]
 matching any of several tag values, for the shared-data-across-states pattern
 (e.g. `editing | error` both carrying `draft`). Lives in `packages/core/src/prism.ts`.
 
+### Slot support in `defineElement` (needs design discussion)
+
+Discovered during busiless dogfooding (`page-header` has `<slot name="action">`).
+Shadow DOM slots are the only native mechanism for projecting children into a
+custom element. Options to explore:
+
+- Shadow-DOM-only: when `shadow` is `'open'` or `'closed'`, slots work automatically
+  via the browser — no extra API needed; the widget just needs to include `<slot>`
+  elements in its output. The limitation: light-DOM (`shadow: false`) components
+  can't use slots.
+- A `children` prop in the signal — pass projected content as a `Node[]` or
+  render function; breaks the "attributes only" contract.
+- Named-slot API on `defineElement` — explicit slot declarations, framework manages
+  insertion points.
+
+Don't design without a concrete use-case set. At minimum: `page-header`'s action slot,
+`data-table`'s column slot, any component using `<slot>` in the current codebase.
+
+### `dynamic()` integration with `defineElement` (friction from dogfooding)
+
+`citation-chip` migration put local `open: boolean` state into the same signal as
+external props (`citation`, `index`). This conflates external-facing state with
+internal UI state. `dynamic(false, widget)` would be the right split, but `defineElement`
+currently wraps `Widget<T>` where `T` = the full props type. Needs a way to declare
+which fields are "external" (attr-bound) vs "local" (not reflected, not observed).
+
 ### `subscribeNow` helper (small, unblocked)
 
 Inside `template` bind fns, the pattern of setting initial DOM values from `s.get()`
