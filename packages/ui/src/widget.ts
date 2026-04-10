@@ -39,6 +39,7 @@ import {
   type AsyncData,
   signal as _signal,
   lens,
+  field,
   index,
   stateful,
   tagged,
@@ -54,6 +55,7 @@ import type {
   InputEl, InputAttrs,
   TextareaEl, TextareaAttrs,
   SelectEl, SelectAttrs,
+  GlobalAttrs,
 } from "./html.js"
 
 // ── Widget type ───────────────────────────────────────────────────────────────
@@ -172,6 +174,22 @@ export function focus<A, B, E extends AnyEl>(
   l: Lens<A, B>,
 ): Widget<A, E> {
   return (s) => w((s as Signal<A>).focus(l))
+}
+
+/**
+ * Sugar for `focus(w, field(key))`. Zoom into a named property of the signal.
+ * The most common use of `focus` — use this instead when the lens is a simple
+ * field access.
+ *
+ * @example
+ * prop(each(rowWidget), 'items')  // Widget<{ items: Row[] }>
+ * prop(nameWidget, 'name')        // Widget<{ name: string }>
+ */
+export function prop<T, K extends keyof T & string, E extends AnyEl>(
+  w: Widget<T[K], E>,
+  key: K,
+): Widget<T, E> {
+  return focus(w, field(key))
 }
 
 /**
@@ -487,14 +505,21 @@ export type RefsMap<R extends Record<string, keyof HTMLElementTagNameMap>> = {
 }
 
 /**
- * Template combinator. Parses `innerHTML` once (at definition time), then for
- * each widget instantiation clones the template, queries out typed DOM refs via
- * `data-ref` attributes, and calls `bind` with the signal and those refs.
+ * **Performance escape hatch.** Prefer the reactive hyperscript factories
+ * (`h.div`, `h.span`, …) for normal widget authoring — they are type-safe,
+ * compose naturally with slots and combinators, and avoid the `data-ref`
+ * indirection.
+ *
+ * Use `template` only when instantiation count is high and the clone-vs-create
+ * difference is measurable: it parses `innerHTML` once at definition time and
+ * calls `cloneNode(true)` on each instantiation, which is faster than N
+ * `createElement` calls for large identical subtrees (e.g. a `eachKeyed` row
+ * with many static nodes).
  *
  * Refs are queried as `tagName[data-ref="refName"]`, so `{ name: "span" }`
  * expects `<span data-ref="name">` in the template. Using `data-ref` rather
- * than `id` means the same template can be cloned many times (e.g. inside
- * `eachKeyed`) without duplicate-ID issues.
+ * than `id` means the same template can be cloned many times without
+ * duplicate-ID issues.
  *
  * `bind` is called inside the widget call context, so any `subscribe` calls
  * inside it are tracked and cleaned up by `mount` / parent combinators.
@@ -502,12 +527,11 @@ export type RefsMap<R extends Record<string, keyof HTMLElementTagNameMap>> = {
  * @throws if a declared ref is absent from the cloned template.
  *
  * @example
- * const cardWidget = template(
- *   `<div class="card"><span data-ref="name"></span><b data-ref="score"></b></div>`,
- *   { name: "span", score: "b" } as const,
+ * // High-volume row widget — justified use of template()
+ * const rowWidget = template(
+ *   `<tr><td data-ref="name"></td><td data-ref="score"></td></tr>`,
+ *   { name: "td", score: "td" } as const,
  *   (s, { name, score }) => {
- *     name.node.textContent = s.get().label
- *     score.node.textContent = String(s.get().value)
  *     subscribe(s, v => {
  *       name.node.textContent = v.label
  *       score.node.textContent = String(v.value)
@@ -1067,4 +1091,145 @@ export function selectWidget(
     bindSelect(el.node, ws)
     return el
   }
+}
+
+// ── Reactive hyperscript factories ────────────────────────────────────────────
+
+/**
+ * A reactive child: either a plain string or a widget that accepts the same
+ * signal type `T` and returns any element.
+ *
+ * `AnyEl` is intentionally excluded. Passing a pre-built element directly would
+ * require `cloneNode(true)` on each widget invocation, silently dropping event
+ * listeners. Use `lift(el)` to wrap a freshly-built element instead.
+ */
+export type RChild<T> = string | Widget<T, AnyEl>
+
+/**
+ * Lift a static element into the widget context. Use this to pass a
+ * pre-built `AnyEl` as a child to an `h.*` reactive factory:
+ *
+ *   h.div({}, lift(iconEl), reactiveChild)
+ *
+ * The element is inserted as-is — no cloning — so event listeners are
+ * preserved. Only use `lift` when the element is freshly built at widget
+ * call time (i.e. inside the widget function body). Do NOT lift a module-
+ * level static element — it can only have one parent at a time.
+ */
+export function lift<T, E extends AnyEl>(el: E): Widget<T, E> {
+  return (_s) => el
+}
+
+/**
+ * Build a reactive element factory for `tag`. Returns a function that accepts
+ * `GlobalAttrs` (or a subtype) and spread `RChild<T>` children, and produces a
+ * `Widget<T, El<tag, N>>`.
+ *
+ * - Widget children (including those wrapped with `lift()`) are called with the
+ *   signal inside the current tracked context.
+ * - String children create fresh text nodes each instance.
+ *
+ * To pass a pre-built element, use `lift(el)` rather than passing `AnyEl`
+ * directly. This preserves event listeners and makes the intent explicit.
+ */
+function _reactive<Tag extends keyof HTMLElementTagNameMap>(tag: Tag) {
+  type N = HTMLElementTagNameMap[Tag]
+  type E = El<Tag & string, N>
+  // Return type written as an expanded function type to avoid the `E extends AnyEl`
+  // constraint on the Widget<T, E> alias — TypeScript cannot prove that an
+  // arbitrary `El<Tag, N>` satisfies the closed AnyEl union at the generic level.
+  return <T>(attrs: GlobalAttrs, ...children: RChild<T>[]): ((s: Signal<T>) => E) => {
+    return (s: Signal<T>): E => {
+      const node = document.createElement(tag) as HTMLElement
+      for (const [k, v] of Object.entries(attrs)) {
+        if (v === undefined || v === null || v === false) continue
+        node.setAttribute(k, v === true ? "" : String(v))
+      }
+      for (const child of children) {
+        if (typeof child === "function") {
+          node.appendChild((child as Widget<T, AnyEl>)(s).node)
+        } else {
+          node.appendChild(document.createTextNode(child))
+        }
+      }
+      return { _tag: tag, node: node as unknown as N } as unknown as E
+    }
+  }
+}
+
+/**
+ * Reactive hyperscript factories — the same element tags as `html.ts` but
+ * returning `Widget<T, El>` instead of `El`. Import as:
+ *
+ *   import { h } from '@rhi-zone/rainbow-ui/widget'
+ *
+ * Widget children receive the same signal as their parent. String children
+ * create fresh text nodes. To pass a pre-built element, wrap it with `lift(el)`
+ * so it is inserted directly without cloning — preserving event listeners.
+ */
+export const h = {
+  // Sectioning / flow
+  div:      _reactive("div"),
+  section:  _reactive("section"),
+  article:  _reactive("article"),
+  header:   _reactive("header"),
+  footer:   _reactive("footer"),
+  main:     _reactive("main"),
+  nav:      _reactive("nav"),
+  // Headings
+  h1:       _reactive("h1"),
+  h2:       _reactive("h2"),
+  h3:       _reactive("h3"),
+  h4:       _reactive("h4"),
+  h5:       _reactive("h5"),
+  h6:       _reactive("h6"),
+  // Phrasing
+  p:        _reactive("p"),
+  span:     _reactive("span"),
+  a:        _reactive("a"),
+  em:       _reactive("em"),
+  strong:   _reactive("strong"),
+  code:     _reactive("code"),
+  pre:      _reactive("pre"),
+  // Lists
+  ul:       _reactive("ul"),
+  ol:       _reactive("ol"),
+  li:       _reactive("li"),
+  // Forms
+  button:   _reactive("button"),
+  label:    _reactive("label"),
+  form:     _reactive("form"),
+  fieldset: _reactive("fieldset"),
+} as const
+
+// ── Slot types and helper ─────────────────────────────────────────────────────
+
+/** A widget that takes no meaningful signal and renders flow content. */
+export type Slot = Widget<void, FlowContent>
+
+/** A widget that takes a typed signal `T` and renders flow content. */
+export type ScopedSlot<T> = Widget<T, FlowContent>
+
+/**
+ * Mount a slot widget by replacing a placeholder element.
+ * If no slot is provided, removes the placeholder.
+ * The slot signal defaults to `s` (cast) if `slotSignal` is omitted.
+ *
+ * @example
+ * slot(placeholder, s, v => v.actionsSlot)               // slot signal = s
+ * slot(placeholder, s, v => v.rowSlot, s.focus(rowLens)) // slot signal = focused
+ */
+export function slot<Props, T>(
+  placeholder: HTMLElement,
+  s: Signal<Props>,
+  extract: (props: Props) => Widget<T, FlowContent> | undefined,
+  slotSignal?: Signal<T>,
+): void {
+  const w = extract(s.get())
+  if (w === undefined) {
+    placeholder.remove()
+    return
+  }
+  const el = w((slotSignal ?? s) as Signal<T>)
+  placeholder.replaceWith(el.node)
 }
