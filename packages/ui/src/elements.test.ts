@@ -194,6 +194,31 @@ describe("defineElement", () => {
     el.remove()
   })
 
+  it("attr alias: kebab HTML attribute maps to camelCase signal field", () => {
+    type Props = { isActive: boolean; label: string }
+    const t = tag()
+    defineElement(t, {
+      widget: (sig) => {
+        const node = document.createElement("div")
+        subscribe(sig, (v) => { node.textContent = `${v.label}:${v.isActive}` })
+        node.textContent = `${sig.get().label}:${sig.get().isActive}`
+        return { _tag: "div" as const, node }
+      },
+      defaults: { isActive: false, label: "" },
+      attrs: {
+        isActive: { name: "is-active", optic: attrBoolean },
+        label: attrString,
+      },
+      shadow: false,
+    })
+    const el = document.createElement(t)
+    document.body.appendChild(el)
+    el.setAttribute("is-active", "true")
+    el.setAttribute("label", "hello")
+    expect(el.querySelector("div")?.textContent).toBe("hello:true")
+    el.remove()
+  })
+
   it("applies CSS string as adoptedStyleSheets on shadow root", () => {
     const t = tag()
     defineElement(t, {

@@ -25,15 +25,38 @@ import type { Widget } from "./widget.js"
 // ── AttrSchema ────────────────────────────────────────────────────────────────
 
 /**
- * Maps field names of `T` to optics that convert between `string | null`
- * (raw HTML attribute) and `T[K]` (typed signal field).
+ * An entry in `AttrSchema<T>`. Either a plain optic (attribute name = prop name)
+ * or a named entry `{ name, optic }` where `name` is the HTML attribute name
+ * (e.g. `"requires-review"`) and the TypeScript key remains the camelCase prop.
  *
  * - `optic.view(raw)`    — parse attribute string into `T[K]`;
  *                          `undefined` means use `defaults[K]`
  * - `optic.review(v, _)` — serialise `T[K]` back to a string for reflection
+ *
+ * @example
+ * // Simple: attr name = prop name
+ * attrs: { label: attrString, score: attrNumber }
+ *
+ * // Alias: HTML "requires-review" → TS prop "requiresReview"
+ * attrs: { requiresReview: { name: "requires-review", optic: attrBoolean } }
  */
+export type AttrEntry<V> =
+  | Optic<string | null, V>
+  | { name: string; optic: Optic<string | null, V> }
+
 export type AttrSchema<T> = {
-  [K in keyof T]?: Optic<string | null, T[K]>
+  [K in keyof T]?: AttrEntry<T[K]>
+}
+
+function resolveEntry<V>(
+  key: string,
+  entry: AttrEntry<V>,
+): { attrName: string; optic: Optic<string | null, V> } {
+  if ("name" in entry && typeof (entry as { name: unknown }).name === "string") {
+    const e = entry as { name: string; optic: Optic<string | null, V> }
+    return { attrName: e.name, optic: e.optic }
+  }
+  return { attrName: key, optic: entry as Optic<string | null, V> }
 }
 
 // ── Standard attribute optics ──────────────────────────────────────────────────
@@ -171,7 +194,15 @@ export function defineElement<T extends object>(
     styles,
   } = config
 
-  const attrNames = Object.keys(attrs) as (keyof T & string)[]
+  // Build: HTML attr name → { propKey, optic }
+  type AttrInfo = { propKey: keyof T & string; optic: Optic<string | null, T[keyof T]> }
+  const attrMap = new Map<string, AttrInfo>()
+  for (const key of Object.keys(attrs) as (keyof T & string)[]) {
+    const entry = attrs[key]!
+    const { attrName, optic } = resolveEntry(key, entry as AttrEntry<T[keyof T]>)
+    attrMap.set(attrName, { propKey: key, optic })
+  }
+  const attrNames = [...attrMap.keys()]
 
   const styleSheets: CSSStyleSheet[] =
     styles == null ? [] :
@@ -184,7 +215,7 @@ export function defineElement<T extends object>(
     _rb_signal: Signal<T> = signal({ ...defaults })
     _rb_cleanup: (() => void) | null = null
 
-    static get observedAttributes(): string[] { return attrNames }
+    static get observedAttributes(): string[] { return attrNames as string[] }
 
     connectedCallback(): void {
       const root: HTMLElement | ShadowRoot =
@@ -211,10 +242,10 @@ export function defineElement<T extends object>(
       _old: string | null,
       raw: string | null,
     ): void {
-      const optic = attrs[name as keyof T & string]
-      if (optic == null) return
-      const parsed = optic.view(raw) ?? defaults[name as keyof T]
-      this._rb_signal.set({ ...this._rb_signal.get(), [name]: parsed })
+      const info = attrMap.get(name)
+      if (info == null) return
+      const parsed = info.optic.view(raw) ?? defaults[info.propKey]
+      this._rb_signal.set({ ...this._rb_signal.get(), [info.propKey]: parsed })
     }
   }
 
