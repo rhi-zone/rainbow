@@ -1,6 +1,6 @@
 {
   "name": "@rhi-zone/rainbow-router",
-  "version": "0.2.0-alpha.0",
+  "version": "0.2.0-alpha.1",
   "description": "Trie-based SPA router for rainbow",
   "type": "module",
   "types": "./dist/index.d.ts",
@@ -30,7 +30,7 @@
     "test":      "vitest run"
   },
   "dependencies": {
-    "@rhi-zone/rainbow": "workspace:*"
+    "@rhi-zone/rainbow": "0.2.0-alpha.0"
   },
   "devDependencies": {
     "@standard-schema/spec": "^1.0.0",
