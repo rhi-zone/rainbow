@@ -87,6 +87,7 @@ export type FormEl       = El<"form",       HTMLFormElement>
 export type InputEl      = El<"input",      HTMLInputElement>
 export type LabelEl      = El<"label",      HTMLLabelElement>
 export type FieldsetEl   = El<"fieldset",   HTMLFieldSetElement>
+export type LegendEl     = El<"legend",     HTMLLegendElement>
 export type SelectEl     = El<"select",     HTMLSelectElement>
 export type OptionEl     = El<"option",     HTMLOptionElement>
 export type TextareaEl   = El<"textarea",   HTMLTextAreaElement>
@@ -159,6 +160,7 @@ export type RowContent          = TrEl
 export type CellContent         = TdEl | ThEl
 export type ListItemContent     = LiEl
 export type SelectContent       = OptionEl
+export type LegendContent       = LegendEl
 
 export type DefinitionListContent = DtEl | DdEl
 
@@ -172,14 +174,57 @@ export type SvgContent =
 
 export type AnyEl =
   | FlowContent | HeadContent | RowContent | CellContent
-  | ListItemContent | SelectContent | SourceEl
+  | ListItemContent | SelectContent | LegendContent | SourceEl
   | TableSectionContent | DefinitionListContent
   | HtmlEl | HeadEl | BodyEl
   | SvgContent
 
 // ── Attribute types ───────────────────────────────────────────────────────────
 
-export type GlobalAttrs = {
+export type AriaAttrs = {
+  role?: 'button' | 'dialog' | 'navigation' | 'main' | 'list' | 'listitem' | 'alert' | 'status' | 'region' | 'banner' | 'contentinfo' | 'search' | 'form' | 'img' | 'presentation' | 'none' | 'grid' | 'row' | 'cell' | 'columnheader' | 'rowheader' | 'table' | 'tab' | 'tablist' | 'tabpanel' | 'checkbox' | 'radio' | 'combobox' | 'listbox' | 'option' | 'menuitem' | 'menu' | 'menubar' | 'separator' | 'slider' | 'spinbutton' | 'textbox' | 'progressbar' | 'tooltip' | 'tree' | 'treeitem' | 'treegrid' | (string & {})
+  'aria-label'?: string
+  'aria-labelledby'?: string
+  'aria-describedby'?: string
+  'aria-hidden'?: 'true' | 'false'
+  'aria-live'?: 'off' | 'polite' | 'assertive'
+  'aria-busy'?: 'true' | 'false'
+  'aria-expanded'?: 'true' | 'false'
+  'aria-selected'?: 'true' | 'false'
+  'aria-checked'?: 'true' | 'false' | 'mixed'
+  'aria-pressed'?: 'true' | 'false' | 'mixed'
+  'aria-disabled'?: 'true' | 'false'
+  'aria-required'?: 'true' | 'false'
+  'aria-invalid'?: 'true' | 'false' | 'grammar' | 'spelling'
+  'aria-current'?: 'page' | 'step' | 'location' | 'date' | 'time' | 'true' | 'false'
+  'aria-haspopup'?: 'true' | 'false' | 'menu' | 'listbox' | 'tree' | 'grid' | 'dialog'
+  'aria-controls'?: string
+  'aria-owns'?: string
+  'aria-activedescendant'?: string
+  'aria-level'?: number
+  'aria-posinset'?: number
+  'aria-setsize'?: number
+  'aria-colcount'?: number
+  'aria-colindex'?: number
+  'aria-rowcount'?: number
+  'aria-rowindex'?: number
+  'aria-valuemax'?: number
+  'aria-valuemin'?: number
+  'aria-valuenow'?: number
+  'aria-valuetext'?: string
+  'aria-sort'?: 'ascending' | 'descending' | 'none' | 'other'
+  'aria-orientation'?: 'horizontal' | 'vertical'
+  'aria-autocomplete'?: 'inline' | 'list' | 'both' | 'none'
+  'aria-multiselectable'?: 'true' | 'false'
+  'aria-readonly'?: 'true' | 'false'
+  'aria-modal'?: 'true' | 'false'
+  'aria-placeholder'?: string
+  'aria-errormessage'?: string
+  'aria-roledescription'?: string
+  'aria-keyshortcuts'?: string
+}
+
+export type GlobalAttrs = AriaAttrs & {
   id?: string
   class?: string
   style?: string
@@ -480,6 +525,9 @@ export const label    = (attrs: LabelAttrs, ...children: (PhrasingContent | stri
 
 export const fieldset = (attrs: GlobalAttrs, ...children: (FlowContent | string)[]): FieldsetEl =>
   _el<"fieldset", HTMLFieldSetElement>("fieldset")(attrs as RawAttrs, ...children)
+
+export const legend   = (attrs: GlobalAttrs, ...children: (PhrasingContent | string)[]): LegendEl =>
+  _el<"legend", HTMLLegendElement>("legend")(attrs as RawAttrs, ...children)
 
 export const select   = (attrs: SelectAttrs, ...children: SelectContent[]): SelectEl =>
   _el<"select", HTMLSelectElement>("select")(attrs as RawAttrs, ...children)
