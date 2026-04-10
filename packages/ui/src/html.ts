@@ -238,14 +238,54 @@ export type AAttrs        = GlobalAttrs & { href?: string; target?: string; rel?
 export type ButtonAttrs   = GlobalAttrs & { type?: string; name?: string; value?: string; disabled?: boolean; form?: string }
 export type FormAttrs     = GlobalAttrs & { action?: string; method?: string; enctype?: string }
 export type ImgAttrs      = GlobalAttrs & { src: string; alt: string; width?: string; height?: string; loading?: string }
-export type InputAttrs    = GlobalAttrs & { type?: string; name?: string; value?: string; placeholder?: string; required?: boolean; disabled?: boolean; checked?: boolean; readonly?: boolean }
+export type InputAttrs = GlobalAttrs & {
+  type?: string
+  name?: string
+  value?: string
+  placeholder?: string
+  required?: boolean
+  disabled?: boolean
+  checked?: boolean
+  readonly?: boolean
+  maxlength?: number
+  minlength?: number
+  min?: string | number
+  max?: string | number
+  step?: string | number
+  pattern?: string
+  multiple?: boolean
+  autocomplete?: string
+  accept?: string
+  capture?: string
+  list?: string
+  size?: number
+}
 export type LabelAttrs    = GlobalAttrs & { for?: string }
 export type LinkAttrs     = { rel: string; href?: string; type?: string; media?: string; id?: string; class?: string }
 export type MetaAttrs     = { name?: string; content?: string; charset?: string; "http-equiv"?: string }
 export type OptionAttrs   = GlobalAttrs & { value?: string; selected?: boolean; disabled?: boolean }
 export type ScriptAttrs   = { src?: string; type?: string; async?: boolean; defer?: boolean; id?: string }
-export type SelectAttrs   = GlobalAttrs & { name?: string; multiple?: boolean; required?: boolean; disabled?: boolean }
-export type TextareaAttrs = GlobalAttrs & { name?: string; rows?: number; cols?: number; placeholder?: string; required?: boolean; disabled?: boolean; readonly?: boolean }
+export type SelectAttrs = GlobalAttrs & {
+  name?: string
+  multiple?: boolean
+  required?: boolean
+  disabled?: boolean
+  size?: number
+  autocomplete?: string
+}
+export type TextareaAttrs = GlobalAttrs & {
+  name?: string
+  rows?: number
+  cols?: number
+  placeholder?: string
+  required?: boolean
+  disabled?: boolean
+  readonly?: boolean
+  maxlength?: number
+  minlength?: number
+  autocomplete?: string
+  wrap?: 'hard' | 'soft' | 'off'
+}
 export type VideoAttrs    = GlobalAttrs & { src?: string; controls?: boolean; autoplay?: boolean; loop?: boolean; muted?: boolean; width?: string; height?: string }
 export type AudioAttrs    = GlobalAttrs & { src?: string; controls?: boolean; autoplay?: boolean; loop?: boolean; muted?: boolean }
 export type SourceAttrs   = { src?: string; type?: string; srcset?: string; media?: string }
