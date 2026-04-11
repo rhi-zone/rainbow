@@ -102,23 +102,18 @@ produces a single container div, eliminates `tagged()` + `narrow()` at call site
 `taggedIn<A, K, V>(key, values)` — matches any of several tag values in a discriminated union.
 Lives in `packages/core/src/prism.ts`. 3 tests.
 
-### Slot support in `defineElement` (needs design discussion)
+### Slot support in `defineElement` ✓ resolved (no code change needed)
 
-Discovered during busiless dogfooding (`page-header` has `<slot name="action">`).
-Shadow DOM slots are the only native mechanism for projecting children into a
-custom element. Options to explore:
+Conclusion: shadow DOM slots already work natively. When `shadow: 'open'` (the default),
+the widget can include `<slot>` and `<slot name="...">` elements in its output and
+children of the custom element project into them automatically. This is how
+`app-shell` in busiless works — `shadow: 'open'` + native `<slot>` in `mainEl`.
 
-- Shadow-DOM-only: when `shadow` is `'open'` or `'closed'`, slots work automatically
-  via the browser — no extra API needed; the widget just needs to include `<slot>`
-  elements in its output. The limitation: light-DOM (`shadow: false`) components
-  can't use slots.
-- A `children` prop in the signal — pass projected content as a `Node[]` or
-  render function; breaks the "attributes only" contract.
-- Named-slot API on `defineElement` — explicit slot declarations, framework manages
-  insertion points.
-
-Don't design without a concrete use-case set. At minimum: `page-header`'s action slot,
-`data-table`'s column slot, any component using `<slot>` in the current codebase.
+Light-DOM (`shadow: false`) components can't use slots — that's a browser limitation,
+not a framework gap. Components that need child projection should use shadow DOM.
+No custom API (`children` prop, named-slot config) is needed — the browser's slot
+mechanism is the right answer. Adding a framework-level abstraction would be
+complexity without benefit.
 
 ### `dynamic()` integration with `defineElement` ✓ resolved (no code change needed)
 
