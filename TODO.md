@@ -120,13 +120,13 @@ custom element. Options to explore:
 Don't design without a concrete use-case set. At minimum: `page-header`'s action slot,
 `data-table`'s column slot, any component using `<slot>` in the current codebase.
 
-### `dynamic()` integration with `defineElement` (friction from dogfooding)
+### `dynamic()` integration with `defineElement` ✓ resolved (no code change needed)
 
-`citation-chip` migration put local `open: boolean` state into the same signal as
-external props (`citation`, `index`). This conflates external-facing state with
-internal UI state. `dynamic(false, widget)` would be the right split, but `defineElement`
-currently wraps `Widget<T>` where `T` = the full props type. Needs a way to declare
-which fields are "external" (attr-bound) vs "local" (not reflected, not observed).
+`dynamic(init, innerWidget)` already works inside `defineElement` with no changes.
+`dynamic()` returns `Widget<ExternalProps>`, which is exactly what `defineElement`
+expects. Local state is encapsulated via `stateful()` — `defineElement` never sees it.
+The inner widget focuses `index(0)` for local state and `index(1)` for external props.
+Added JSDoc example on `defineElement` and a test demonstrating the pattern.
 
 ### `subscribeNow` helper ✓ done
 

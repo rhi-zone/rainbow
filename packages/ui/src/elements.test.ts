@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest"
 import type { Signal } from "@rhi-zone/rainbow"
-import { subscribe } from "./widget.js"
+import { index } from "@rhi-zone/rainbow"
+import { subscribe, dynamic } from "./widget.js"
 import { defineElement, attrString, attrNumber, attrBoolean } from "./elements.js"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -229,6 +230,62 @@ describe("defineElement", () => {
     const el = document.createElement(t)
     document.body.appendChild(el)
     expect(el.shadowRoot?.adoptedStyleSheets).toHaveLength(1)
+    el.remove()
+  })
+
+  it("dynamic() works inside widget for local state separate from attrs", () => {
+    // External props: what defineElement manages via attributes
+    type ExternalProps = { label: string; count: number }
+    const defaults: ExternalProps = { label: "", count: 0 }
+
+    // Inner widget receives Signal<[boolean, ExternalProps]>
+    // index(0) = local open state, index(1) = external props
+    const innerWidget = (sig: Signal<[boolean, ExternalProps]>) => {
+      const node = document.createElement("div")
+      const localSig = sig.focus(index(0))
+      const propsSig = sig.focus(index(1))
+
+      const render = () => {
+        const open = localSig.get()
+        const props = propsSig.get()
+        node.textContent = `${props.label}:${props.count}:${open ? "open" : "closed"}`
+      }
+      render()
+      subscribe(sig, render)
+
+      // Toggle local state on click
+      node.addEventListener("click", () => { localSig.set(!localSig.get()) })
+
+      return { _tag: "div" as const, node }
+    }
+
+    // dynamic(false, innerWidget) => Widget<ExternalProps> — local state hidden
+    const t = tag()
+    defineElement(t, {
+      widget: dynamic(false, innerWidget),
+      defaults,
+      attrs: { label: attrString, count: attrNumber },
+      shadow: false,
+    })
+
+    const el = document.createElement(t)
+    document.body.appendChild(el)
+
+    // Initial: defaults + local state = false
+    expect(el.querySelector("div")?.textContent).toBe(":0:closed")
+
+    // Attribute change updates external props only
+    el.setAttribute("label", "Alice")
+    expect(el.querySelector("div")?.textContent).toBe("Alice:0:closed")
+
+    // Click toggles local state without affecting external props
+    el.querySelector("div")!.click()
+    expect(el.querySelector("div")?.textContent).toBe("Alice:0:open")
+
+    // Attribute change preserves local state
+    el.setAttribute("count", "5")
+    expect(el.querySelector("div")?.textContent).toBe("Alice:5:open")
+
     el.remove()
   })
 })

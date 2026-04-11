@@ -175,6 +175,24 @@ function toStyleSheet(s: CSSStyleSheet | string): CSSStyleSheet {
  *
  * // In HTML:
  * // <score-card label="Alice" score="42"></score-card>
+ *
+ * @example
+ * // Local UI state (e.g. open/closed) separate from external props:
+ * // Use dynamic() to pair local state with the external signal.
+ * // defineElement manages only the external props; local state is
+ * // encapsulated inside the widget and never reflected to attributes.
+ *
+ * const inner = (sig: Signal<[boolean, ExternalProps]>) => {
+ *   const open = sig.focus(index(0))   // local state
+ *   const props = sig.focus(index(1))  // external (attr-bound)
+ *   // ... build DOM using both signals
+ * }
+ *
+ * defineElement("my-dropdown", {
+ *   widget: dynamic(false, inner),  // Widget<ExternalProps>
+ *   defaults: { value: "" },
+ *   attrs: { value: attrString },
+ * })
  */
 export function defineElement<T extends object>(
   tagName: string,
