@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { prism, composePrism, some, iso, guard, nullable, tagged } from './prism.ts'
+import { prism, composePrism, some, iso, guard, nullable, tagged, taggedIn } from './prism.ts'
 
 type Shape = { kind: 'circle'; r: number } | { kind: 'rect'; w: number; h: number }
 
@@ -103,5 +103,36 @@ describe('tagged', () => {
   it('handles the other variant independently', () => {
     expect(rect.view({ kind: 'rect', w: 2, h: 4 })).toEqual({ kind: 'rect', w: 2, h: 4 })
     expect(rect.view({ kind: 'circle', r: 1 })).toBeUndefined()
+  })
+})
+
+describe('taggedIn', () => {
+  type State =
+    | { tag: 'idle' }
+    | { tag: 'loading' }
+    | { tag: 'editing'; draft: string }
+    | { tag: 'error'; draft: string; message: string }
+
+  const editingOrError = taggedIn<State, 'tag', 'editing' | 'error'>('tag', ['editing', 'error'])
+
+  it('matches when tag is one of the specified values', () => {
+    const editing: State = { tag: 'editing', draft: 'hello' }
+    expect(editingOrError.view(editing)).toEqual(editing)
+
+    const error: State = { tag: 'error', draft: 'hello', message: 'oops' }
+    expect(editingOrError.view(error)).toEqual(error)
+  })
+
+  it('returns undefined when tag is not in the values', () => {
+    const idle: State = { tag: 'idle' }
+    expect(editingOrError.view(idle)).toBeUndefined()
+
+    const loading: State = { tag: 'loading' }
+    expect(editingOrError.view(loading)).toBeUndefined()
+  })
+
+  it('build returns the value unchanged', () => {
+    const editing = { tag: 'editing' as const, draft: 'test' }
+    expect(editingOrError.review(editing)).toBe(editing)
   })
 })

@@ -105,3 +105,30 @@ export function tagged<A, K extends keyof A, V extends A[K]>(
     (b) => b,
   )
 }
+
+/**
+ * Prism for multiple variants of a discriminated union, matched by a tag field.
+ * Like `tagged`, but matches when the tag is any of the given values.
+ *
+ * @example
+ *   type State =
+ *     | { tag: 'idle' }
+ *     | { tag: 'loading' }
+ *     | { tag: 'editing'; draft: string }
+ *     | { tag: 'error'; draft: string; message: string }
+ *
+ *   const withDraft = taggedIn<State, 'tag', 'editing' | 'error'>('tag', ['editing', 'error'])
+ *   // Prism<State, { tag: 'editing'; draft: string } | { tag: 'error'; draft: string; message: string }>
+ */
+export function taggedIn<
+  A extends Record<K, string>,
+  K extends keyof A & string,
+  V extends A[K] & string,
+>(key: K, values: readonly V[]): Prism<A, Extract<A, Record<K, V>>> {
+  return prism(
+    (a) => (values as readonly string[]).includes(a[key] as string)
+      ? a as Extract<A, Record<K, V>>
+      : undefined,
+    (b) => b,
+  )
+}
