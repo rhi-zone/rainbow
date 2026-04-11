@@ -92,35 +92,15 @@ See design doc §2 and existing "async" open question above.
 Shadow DOM opt-in, attribute type coercion, JS property accessors, adopted
 stylesheets. Lives in rainbow-ui. See design doc §1.
 
-### `match` combinator — discriminated union rendering (unblocked)
+### `match` combinator — discriminated union rendering ✓ done
 
-Discovered via `examples/contacts/src/machine.ts` state machine example.
+Already implemented in `rainbow-ui/widget.ts`. Enforces exhaustiveness at compile time,
+produces a single container div, eliminates `tagged()` + `narrow()` at call sites.
 
-The current pattern for rendering an N-state machine:
-- N prism declarations via `tagged()`
-- N `narrow(widget, prism)` calls wrapped in `stack()`
-- N+1 wrapper divs in the DOM
-- No compile-time exhaustiveness check
+### `taggedIn` prism ✓ done
 
-Proposed signature:
-```ts
-match<S, K extends keyof S & string>(
-  key: K,
-  cases: { [T in S[K] & string]: Widget<Extract<S, Record<K, T>>> },
-): Widget<S, DivEl>
-```
-
-This would:
-- Produce a single container div (not N narrow + 1 stack div)
-- Enforce exhaustiveness at compile time (missing variant = type error)
-- Eliminate all `tagged()` and `narrow()` declarations at call sites
-- Naturally generalise `fold` (AsyncData) to arbitrary tagged unions
-
-Lives in `rainbow-ui/widget.ts`. Blocked on nothing.
-
-Also needed: `taggedIn<A, K extends keyof A, V extends A[K]>(key: K, values: V[])` — a prism
-matching any of several tag values, for the shared-data-across-states pattern
-(e.g. `editing | error` both carrying `draft`). Lives in `packages/core/src/prism.ts`.
+`taggedIn<A, K, V>(key, values)` — matches any of several tag values in a discriminated union.
+Lives in `packages/core/src/prism.ts`. 3 tests.
 
 ### Slot support in `defineElement` (needs design discussion)
 
@@ -148,12 +128,6 @@ internal UI state. `dynamic(false, widget)` would be the right split, but `defin
 currently wraps `Widget<T>` where `T` = the full props type. Needs a way to declare
 which fields are "external" (attr-bound) vs "local" (not reflected, not observed).
 
-### `subscribeNow` helper (small, unblocked)
+### `subscribeNow` helper ✓ done
 
-Inside `template` bind fns, the pattern of setting initial DOM values from `s.get()`
-and then subscribing for updates repeats everywhere. A helper:
-```ts
-subscribeNow<T>(s: Signal<T>, fn: (v: T) => void): void
-// equivalent to: fn(s.get()); subscribe(s, fn)
-```
-would halve the lines in every template bind fn. Lives in `widget.ts`.
+Already implemented in `widget.ts`. `subscribeNow(s, fn)` = `fn(s.get()); subscribe(s, fn)`.
