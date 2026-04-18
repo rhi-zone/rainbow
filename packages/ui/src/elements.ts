@@ -194,11 +194,11 @@ function toStyleSheet(s: CSSStyleSheet | string): CSSStyleSheet {
  *   attrs: { value: attrString },
  * })
  */
-export function defineElement<T extends object>(
+export function defineElement<T extends object = Record<never, never>>(
   tagName: string,
   config: {
     widget: Widget<T, AnyEl>
-    defaults: T
+    defaults?: T
     attrs?: AttrSchema<T>
     shadow?: "open" | "closed" | false
     styles?: CSSStyleSheet | string | (CSSStyleSheet | string)[]
@@ -206,7 +206,7 @@ export function defineElement<T extends object>(
 ): void {
   const {
     widget,
-    defaults,
+    defaults = {} as T,
     attrs = {} as AttrSchema<T>,
     shadow = "open",
     styles,
