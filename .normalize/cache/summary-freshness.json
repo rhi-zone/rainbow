@@ -1,31 +1,219 @@
 {
-  "head": "e13ccc569af8a52a76e5422105bb6f0b8aec7b5b",
+  "head": "d58223310f7712ed6743cd0f80a01f98c427bd28",
   "dirs": {
-    "examples/contacts/src": {
+    ".claude/worktrees/agent-ac9a6f36/examples/todomvc": {
       "last_summary_commit": null,
-      "commits_count": 4
+      "commits_count": 0
     },
-    ".normalize/cache": {
+    ".claude/worktrees/agent-ac9a6f36/docs/guide": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    "docs/guide": {
       "last_summary_commit": null,
       "commits_count": 2
     },
-    ".normalize": {
+    ".claude/worktrees/agent-ac9a6f36/packages/router": {
       "last_summary_commit": null,
-      "commits_count": 2
+      "commits_count": 0
     },
-    ".": {
+    ".github/workflows": {
       "last_summary_commit": null,
-      "commits_count": 66
+      "commits_count": 1
+    },
+    ".claude/worktrees/agent-a0a1ec34/packages/core": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-ac9a6f36/packages/router/src/adapters": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a7c11af6/docs/guide": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/commands": {
+      "last_summary_commit": null,
+      "commits_count": 1
+    },
+    ".claude/worktrees/agent-ac9a6f36/packages/ui/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a0a1ec34/packages/router": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-ac9a6f36": {
+      "last_summary_commit": null,
+      "commits_count": 0
     },
     "packages/core/src": {
       "last_summary_commit": null,
       "commits_count": 12
     },
-    "examples/todomvc/src": {
+    ".claude/worktrees/agent-a7c11af6/packages/core": {
       "last_summary_commit": null,
-      "commits_count": 5
+      "commits_count": 0
     },
-    ".claude": {
+    ".claude/worktrees/agent-ac9a6f36/packages/router/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a7c11af6/examples/async-gallery": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-ac9a6f36/docs": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a0a1ec34/packages/router/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a200b760/packages/router/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    "docs/api": {
+      "last_summary_commit": null,
+      "commits_count": 2
+    },
+    ".claude/worktrees/agent-ac9a6f36/packages/core/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-ac9a6f36/examples/async-gallery/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    "docs/.vitepress": {
+      "last_summary_commit": null,
+      "commits_count": 3
+    },
+    ".claude/worktrees/agent-a0a1ec34/docs/.vitepress": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a0a1ec34/packages/ui": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a7c11af6/packages/router": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".normalize": {
+      "last_summary_commit": null,
+      "commits_count": 3
+    },
+    ".claude/worktrees/agent-a0a1ec34/packages/core/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-ac9a6f36/examples/contacts": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a7c11af6/.normalize/cache": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a0a1ec34/packages/ui/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a7c11af6/packages/ui/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a0a1ec34/docs": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a200b760/packages/router/src/adapters": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a200b760/examples/todomvc/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a200b760/packages/ui/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a7c11af6/.normalize": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a7c11af6/packages/router/src/adapters": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a7c11af6/examples/todomvc": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a7c11af6/examples/todomvc/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    "examples/async-gallery/src": {
+      "last_summary_commit": null,
+      "commits_count": 1
+    },
+    ".claude/worktrees/agent-a7c11af6/examples/async-gallery/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a7c11af6/examples/contacts": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    "packages/router": {
+      "last_summary_commit": null,
+      "commits_count": 8
+    },
+    ".claude/worktrees/agent-a0a1ec34/examples/async-gallery": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a0a1ec34/.normalize": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a200b760/packages/core/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-ac9a6f36/examples/async-gallery": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a200b760/packages/ui": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a0a1ec34/.github/workflows": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-ac9a6f36/examples/contacts/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a7c11af6/packages/router/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a200b760/examples/contacts": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a0a1ec34/.claude": {
       "last_summary_commit": null,
       "commits_count": 0
     },
@@ -33,55 +221,115 @@
       "last_summary_commit": null,
       "commits_count": 1
     },
+    ".claude/worktrees/agent-a0a1ec34/examples/todomvc/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a7c11af6/packages/core/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a200b760/docs/design": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a200b760/examples/todomvc": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a7c11af6/docs": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
     "packages/core": {
       "last_summary_commit": null,
       "commits_count": 13
     },
-    "packages/router": {
+    ".claude/worktrees/agent-a200b760/docs/.vitepress": {
       "last_summary_commit": null,
-      "commits_count": 8
-    },
-    "docs/api": {
-      "last_summary_commit": null,
-      "commits_count": 2
-    },
-    ".github/workflows": {
-      "last_summary_commit": null,
-      "commits_count": 1
-    },
-    "packages/router/src": {
-      "last_summary_commit": null,
-      "commits_count": 4
-    },
-    "examples/todomvc": {
-      "last_summary_commit": null,
-      "commits_count": 5
+      "commits_count": 0
     },
     "examples/contacts": {
       "last_summary_commit": null,
       "commits_count": 4
     },
-    "packages/ui": {
+    ".claude/worktrees/agent-a200b760/packages/core": {
       "last_summary_commit": null,
-      "commits_count": 33
+      "commits_count": 0
     },
-    "packages/ui/src": {
+    ".claude/worktrees/agent-a7c11af6/docs/api": {
       "last_summary_commit": null,
-      "commits_count": 30
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a7c11af6/.github/workflows": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a0a1ec34/examples/async-gallery/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-ac9a6f36/packages/core": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    "packages/router/src": {
+      "last_summary_commit": null,
+      "commits_count": 4
+    },
+    ".claude/worktrees/agent-ac9a6f36/.claude": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-ac9a6f36/docs/design": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".normalize/cache": {
+      "last_summary_commit": null,
+      "commits_count": 3
+    },
+    ".claude/worktrees/agent-a7c11af6/examples/contacts/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a0a1ec34/docs/design": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a0a1ec34/docs/api": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a0a1ec34/examples/todomvc": {
+      "last_summary_commit": null,
+      "commits_count": 0
     },
     "packages/router/src/adapters": {
       "last_summary_commit": null,
       "commits_count": 1
     },
-    "docs/design": {
+    ".claude/worktrees/agent-a200b760/docs/api": {
       "last_summary_commit": null,
-      "commits_count": 7
+      "commits_count": 0
     },
-    "docs/.vitepress": {
+    ".claude/worktrees/agent-a200b760/packages/router": {
       "last_summary_commit": null,
-      "commits_count": 3
+      "commits_count": 0
     },
-    "examples/async-gallery/src": {
+    ".claude/worktrees/agent-a200b760/examples/async-gallery/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a200b760/docs/guide": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    "packages/ui": {
+      "last_summary_commit": null,
+      "commits_count": 34
+    },
+    ".claude": {
       "last_summary_commit": null,
       "commits_count": 1
     },
@@ -89,9 +337,133 @@
       "last_summary_commit": null,
       "commits_count": 10
     },
-    "docs/guide": {
+    ".claude/worktrees/agent-ac9a6f36/.normalize": {
       "last_summary_commit": null,
-      "commits_count": 2
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a0a1ec34/packages/router/src/adapters": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-ac9a6f36/packages/ui": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a200b760/.normalize": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a0a1ec34/examples/contacts": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    "examples/todomvc": {
+      "last_summary_commit": null,
+      "commits_count": 5
+    },
+    ".claude/worktrees/agent-a200b760/examples/async-gallery": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".": {
+      "last_summary_commit": null,
+      "commits_count": 70
+    },
+    ".claude/worktrees/agent-a7c11af6/docs/.vitepress": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-ac9a6f36/docs/api": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a200b760": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a200b760/.claude": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a0a1ec34/examples/contacts/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a0a1ec34/.normalize/cache": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-ac9a6f36/examples/todomvc/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a7c11af6": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a0a1ec34/docs/guide": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a200b760/docs": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a7c11af6/packages/ui": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-ac9a6f36/.github/workflows": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a7c11af6/.claude": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    "docs/design": {
+      "last_summary_commit": null,
+      "commits_count": 7
+    },
+    "examples/todomvc/src": {
+      "last_summary_commit": null,
+      "commits_count": 5
+    },
+    ".claude/worktrees/agent-a200b760/.github/workflows": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a0a1ec34": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    "packages/ui/src": {
+      "last_summary_commit": null,
+      "commits_count": 31
+    },
+    ".claude/worktrees/agent-a200b760/examples/contacts/src": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a200b760/.normalize/cache": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-a7c11af6/docs/design": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    "examples/contacts/src": {
+      "last_summary_commit": null,
+      "commits_count": 4
+    },
+    ".claude/worktrees/agent-ac9a6f36/docs/.vitepress": {
+      "last_summary_commit": null,
+      "commits_count": 0
+    },
+    ".claude/worktrees/agent-ac9a6f36/.normalize/cache": {
+      "last_summary_commit": null,
+      "commits_count": 0
     }
   }
 }
