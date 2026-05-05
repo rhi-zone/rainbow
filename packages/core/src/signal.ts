@@ -1,5 +1,6 @@
 import type { Lens } from './lens.ts'
 import type { Prism } from './prism.ts'
+import { track } from './tracking.ts'
 
 type Subscriber<A> = (value: A) => void
 
@@ -80,6 +81,7 @@ class RootSignal<A> implements Signal<A> {
   }
 
   get(): A {
+    track(this)
     return this._value
   }
 
