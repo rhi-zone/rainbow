@@ -126,3 +126,27 @@ Added JSDoc example on `defineElement` and a test demonstrating the pattern.
 ### `subscribeNow` helper ✓ done
 
 Already implemented in `widget.ts`. `subscribeNow(s, fn)` = `fn(s.get()); subscribe(s, fn)`.
+
+## Publishing aftermath (May 2026)
+
+Burned versions on npm — cannot reuse:
+- `0.1.1` — published by mistake (lower than existing 0.2.0-alpha.0)
+- `0.2.0` — published by mistake (tests had widget failures from misconfigured runner)
+
+Both deprecated with messages pointing to 0.1.0. Cannot unpublish: package has registry dependents (`@rhi-zone/rainbow-ui`, `@rhi-zone/rainbow-router`), so npm policy blocks version unpublishing.
+
+Current dist-tags:
+- `latest` → `0.1.0` (old but conventionally stable)
+- `alpha` → `0.2.0-alpha.1` (current, used by `@dusklight/marinada`)
+
+**Path to next stable:** skip `0.2.0` and `0.1.1`. Next stable should be `0.2.1` or `0.3.0`. Before publishing:
+- [ ] Run `bun pm pack --dry-run` and inspect output
+- [ ] Run all tests via the configured runners (`packages/core` uses bun test, `packages/ui` and `packages/router` use vitest+happy-dom — `bun test` at the repo root only sees the bun-runner tests and **lies about the others**)
+- [ ] Verify exports.types is in correct position (must precede `import`/`require` in conditional exports)
+- [ ] Confirm version bump makes sense relative to what's on npm
+
+## Test runner inconsistency
+
+`bun test` at the rainbow repo root tries to run UI/router tests (which need DOM) with bun's runner and fails with "document is not defined". The actual configured runner for those packages is vitest+happy-dom. This is misleading — looks like 93 tests are broken when they aren't.
+
+- [ ] **Make `bun test` skip vitest packages or run them via vitest** — current state misled an agent into thinking 93 tests were failing during the publish disaster.
