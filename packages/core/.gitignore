@@ -1,0 +1,4 @@
+# Normalize
+.normalize/*
+!.normalize/config.toml
+!.normalize/memory/
