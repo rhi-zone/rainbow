@@ -1,0 +1,28 @@
+{
+  "name": "@rhi-zone/rainbow-url",
+  "version": "0.2.0-alpha.0",
+  "description": "Reactive URL combinators for rainbow — two-way Signal sync with location.search / location.hash",
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types":  "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "dev":       "vite build --watch",
+    "build":     "vite build && tsgo --emitDeclarationOnly",
+    "typecheck": "tsgo --noEmit",
+    "test":      "vitest run"
+  },
+  "dependencies": {
+    "@rhi-zone/rainbow": "0.2.0-alpha.0"
+  },
+  "devDependencies": {
+    "happy-dom": "^16.0.0",
+    "vite":      "^6.0.0",
+    "vitest":    "^2.0.0"
+  }
+}
