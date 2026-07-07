@@ -150,10 +150,3 @@ Current dist-tags:
 `bun test` at the rainbow repo root tries to run UI/router tests (which need DOM) with bun's runner and fails with "document is not defined". The actual configured runner for those packages is vitest+happy-dom. This is misleading — looks like 93 tests are broken when they aren't.
 
 - [ ] **Make `bun test` skip vitest packages or run them via vitest** — current state misled an agent into thinking 93 tests were failing during the publish disaster.
-
-- [ ] Re-run ecosystem CLAUDE.md propagation (relay/blackboard discipline added upstream)
-
-- [ ] install committed orchestrator hooks (was global, now per-repo)
-
-- [ ] run unified harness sync (CLAUDE.md region + portable hooks)
-- [ ] sync ecosystem harness/CLAUDE.md region: run github-io/tooling/propagate-harness-all.sh once clean
