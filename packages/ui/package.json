@@ -24,6 +24,10 @@
     "./form-state": {
       "import": "./dist/form-state.js",
       "types":  "./dist/form-state.d.ts"
+    },
+    "./reactive-html": {
+      "import": "./dist/reactive-html.js",
+      "types":  "./dist/reactive-html.d.ts"
     }
   },
   "files": ["dist"],
@@ -34,7 +38,7 @@
     "test":      "vitest run"
   },
   "dependencies": {
-    "@rhi-zone/rainbow": "0.2.0-alpha.0"
+    "@rhi-zone/rainbow": "workspace:*"
   },
   "devDependencies": {
     "happy-dom": "^16.0.0",

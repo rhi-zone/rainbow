@@ -12,6 +12,7 @@ export default defineConfig({
         widget:   'src/widget.ts',
         elements:   'src/elements.ts',
         'form-state': 'src/form-state.ts',
+        'reactive-html': 'src/reactive-html.ts',
       },
       name: 'RainbowUi',
       formats: ['es'],
