@@ -54,6 +54,10 @@ class ProductSignal<A, B> implements Signal<[A, B]> {
   narrow<C>(prism: Prism<[A, B], C>): Signal<C | undefined> {
     return narrowSignal(this, prism)
   }
+
+  patch(partial: Partial<[A, B]>): void {
+    this.set({ ...(this.get() as object), ...partial } as [A, B])
+  }
 }
 
 /**

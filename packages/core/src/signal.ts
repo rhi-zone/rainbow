@@ -57,6 +57,14 @@ export interface Signal<A> {
   focus<B>(lens: Lens<A, B>): Signal<B>
   /** Return a read-write signal focused via a prism; yields `undefined` when the case doesn't match. */
   narrow<B>(prism: Prism<A, B>): Signal<B | undefined>
+  /**
+   * Shallow-merge `partial` into the current value and set the result.
+   * Sugar for `this.set({ ...this.get(), ...partial })`. Only meaningful
+   * when `A` is an object type — calling it on a non-object `A` (e.g.
+   * `Signal<number>`) is a type error since `Partial<A>` collapses to `{}`,
+   * which does not accept arbitrary keys.
+   */
+  patch(partial: Partial<A>): void
 }
 
 /** A read-only view of a reactive value. */
@@ -114,6 +122,10 @@ class RootSignal<A> implements Signal<A> {
 
   narrow<B>(prism: Prism<A, B>): Signal<B | undefined> {
     return new NarrowedSignal(this, prism)
+  }
+
+  patch(partial: Partial<A>): void {
+    this.set({ ...(this._value as object), ...partial } as A)
   }
 }
 
@@ -185,6 +197,10 @@ class FocusedSignal<A, B> implements Signal<B> {
   narrow<C>(prism: Prism<B, C>): Signal<C | undefined> {
     return new NarrowedSignal(this, prism)
   }
+
+  patch(partial: Partial<B>): void {
+    this.set({ ...(this.get() as object), ...partial } as B)
+  }
 }
 
 class NarrowedSignal<A, B> implements Signal<B | undefined> {
@@ -227,6 +243,10 @@ class NarrowedSignal<A, B> implements Signal<B | undefined> {
 
   narrow<C>(prism: Prism<B | undefined, C>): Signal<C | undefined> {
     return new NarrowedSignal(this, prism)
+  }
+
+  patch(partial: Partial<B | undefined>): void {
+    this.set({ ...(this.get() as object), ...partial } as B | undefined)
   }
 }
 

@@ -41,6 +41,36 @@ describe('signal basics', () => {
   })
 })
 
+describe('signal.patch', () => {
+  it('shallow-merges partial into current value', () => {
+    const s = signal({ name: 'a', age: 1 })
+    s.patch({ age: 2 })
+    expect(s.get()).toEqual({ name: 'a', age: 2 })
+  })
+
+  it('notifies subscribers once with the merged value', () => {
+    const s = signal({ name: 'a', age: 1 })
+    const fn = vi.fn()
+    s.subscribe(fn)
+    s.patch({ age: 2 })
+    expect(fn).toHaveBeenCalledTimes(1)
+    expect(fn).toHaveBeenCalledWith({ name: 'a', age: 2 })
+  })
+
+  it('leaves fields not present in partial untouched', () => {
+    const s = signal({ a: 1, b: 2, c: 3 })
+    s.patch({ b: 20 })
+    expect(s.get()).toEqual({ a: 1, b: 20, c: 3 })
+  })
+
+  it('works through a focused signal', () => {
+    const outer = signal({ inner: { x: 1, y: 2 }, other: 'z' })
+    const innerSignal = outer.focus(field('inner'))
+    innerSignal.patch({ y: 20 })
+    expect(outer.get()).toEqual({ inner: { x: 1, y: 20 }, other: 'z' })
+  })
+})
+
 describe('signal.map', () => {
   it('derives value', () => {
     const s = signal(2)
