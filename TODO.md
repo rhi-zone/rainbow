@@ -323,6 +323,33 @@ step — the fourth pilot already established the ceiling of what these five com
 absorb. The next combinator (`confirm`, or a widget-bridge helper) should be validated by finding
 a *second* call site before being called general, per the standing rule below.
 
+### Arc outcome (2026-07-15): `query`/`mutation` kept in core, `table`/`tabs`/`panel`/`mutationBanner` deleted
+
+The fourth pilot rewrite in busiless (`page-tutor-marking.ts`, 934 → 672 lines) was reverted on
+the busiless side — the combinators wrapped element construction (compression: fewer characters
+to express the same HOW) rather than eliminating it (the page still specified which combinator,
+which options, in what order; it never got to specify only WHAT to render). Resulting split,
+committed `a3714ec`:
+
+- **`query<T>` and `mutation<In, Out>` moved to `@rhi-zone/rainbow` core** (not `-ui`) as signal
+  factories — they belong next to `signal`/`computed`/`AsyncData`/`fromAsync`, not the component
+  layer, since they have no UI dependency (an async-to-signal bridge, nothing DOM-specific).
+  `QueryResult` now exposes an explicit `dispose()` matching the `fromAsync` precedent.
+- **`table`, `tabs`, `panel`, `mutationBanner` deleted from rainbow-ui.** They failed the
+  primitive-status test: not irreducible, composable from smaller parts, and application-level
+  shape decisions (busiless's specific table/tab/panel conventions) rather than reusable UI
+  primitives. The `@rhi-zone/rainbow-ui/combinators` subpath export was removed entirely.
+- **Key learning, carried into the next arc**: the combinator approach here was "compression"
+  (wrap element construction more concisely) rather than "elimination" (make the page express
+  only its marginal entropy — the ~50 lines of genuinely unique decisions: what data, what
+  fields, what actions). The right application-level abstraction — something closer to a
+  declarative descriptor a page fills in, the way busiless's route-collapse projects HTTP
+  routes from an `EntityDescriptor` rather than wrapping route-registration calls — needs to be
+  derived bottom-up from what's actually fundamental in a consuming codebase (measured, e.g. via
+  `normalize architecture`/`normalize rank`), not designed top-down and pilot-tested after the
+  fact. `query`/`mutation` survived this filter because they generalize independent of any one
+  page's rendering shape; `table`/`tabs`/`panel` did not.
+
 ## Test runner inconsistency
 
 `bun test` at the rainbow repo root tries to run UI/router tests (which need DOM) with bun's runner and fails with "document is not defined". The actual configured runner for those packages is vitest+happy-dom. This is misleading — looks like 93 tests are broken when they aren't.
