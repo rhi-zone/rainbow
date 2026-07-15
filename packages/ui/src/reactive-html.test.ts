@@ -8,6 +8,7 @@ import { describe, it, expect } from "vitest"
 import { signal } from "@rhi-zone/rainbow"
 import { mount } from "./widget.js"
 import { r } from "./reactive-html.js"
+import * as h from "./html.js"
 
 function makeRoot(): HTMLDivElement {
   const root = document.createElement("div")
@@ -97,5 +98,19 @@ describe("r.*", () => {
     // After unmount, further signal changes must not throw or touch the (removed) node.
     active.set(true)
     expect(el.getAttribute("class")).toBe("")
+  })
+})
+
+describe("r.* completeness", () => {
+  it("has every element factory that html.ts exports (parity gate)", () => {
+    // Every runtime export of html.ts must have a same-named counterpart in
+    // `r`. This fails as soon as html.ts grows a new element factory that
+    // reactive-html.ts hasn't been updated to match — the whole point of
+    // this test is that it breaks a build the moment the two modules drift.
+    const staticKeys = Object.keys(h) as (keyof typeof h)[]
+    const reactiveKeys = new Set(Object.keys(r))
+
+    const missing = staticKeys.filter((k) => !reactiveKeys.has(k))
+    expect(missing).toEqual([])
   })
 })
