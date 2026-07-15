@@ -224,6 +224,72 @@ primitive meant a wrapper div + named function per independent section. The orig
 (30–40% reduction) assumed these primitives already existed in the DOM/table-aware form they'd
 need to take — building the primitives first, then re-piloting, is the fair test.
 
+### Re-pilot after building the primitives (2026-07-15) — result: still larger, root cause identified
+
+All the gaps above got fixed: `r.*` (`reactive-html.ts`) now has full element coverage with
+per-tag attrs (table/thead/tbody/tr/th/td/input/textarea included), `signal.patch()` landed on
+every `Signal` implementer, `AsyncBoundary` landed in `widget.ts`. `page-tutor-marking.ts` was
+rewritten a **third time** against these now-complete primitives. Result: **934 lines vs. 828
+original — still larger, not smaller.**
+
+This settles the question the first pilot left open: the ceiling isn't missing element-builder
+coverage. It's architectural. **Rainbow's low-level combinators (focus, narrow, eachKeyed,
+match, the new reactive-html builders) are sound, but they've never been composed up to the
+*page* level.** Every page in busiless (and presumably every rainbow consumer) hand-assembles
+the same shape from raw elements: fetch typed data → render a stats bar → render one or more
+tables with row actions → render a detail/edit side panel → wire mutations back to a refetch.
+That shape recurs, but rainbow currently offers no named, reusable, typed combinator for any
+piece of it above the single-element level.
+
+**Diagnosis, generalized beyond this one page:**
+- Application code should never construct raw elements. Every `r.div(...)` / `h.div(...)` at a
+  call site is a place where the page author re-derives layout, state-wiring, and design-system
+  conventions from scratch instead of calling a named function that already encodes them.
+  20-ish design-system-level primitives (card/stack/cluster/metricCard/dataTable/banner, in the
+  busiless consumer) already exist; the missing layer is *combinators that compose those
+  primitives with typed data*, not more primitives themselves.
+- The "everything as data/config" alternative — a big schema object describing columns/tabs/
+  actions that a generic renderer interprets — was considered and rejected. A schema is not an
+  algebra: it accumulates escape hatches for every case that doesn't fit the shape, and it can't
+  be composed, tested, or typed the way a function can. This is rainbow's own founding thesis
+  (Unicorn: combinators, not config) — the re-pilot showed it hasn't yet been applied one level
+  up, at the page layer.
+- The marginal entropy of a genuine page is small: what data to fetch (a type), what columns/
+  fields to show, what actions exist and what they transition to. A combinator layer that
+  absorbs everything else (loading/error gating, row rendering, panel open/close, tab
+  switching, mutation + refetch plumbing) should get a page like this one down to roughly
+  **50 lines** of composed, typed combinator calls.
+
+### Open work: page-level combinator layer (next arc)
+
+Concrete primitives to build, in roughly dependency order — each should be a typed function
+returning a composable UI value (not a framework concept, not a config object), rendering via
+the existing design-system components rather than bypassing them:
+
+1. **`query<T>(endpoint)`** — typed async data fetch backed by a signal (thin wrapper over the
+   existing `fromAsync`), giving call sites a `Signal<AsyncState<T>>` without hand-rolled fetch
+   + loading-state ceremony.
+2. **`table<T>(data, columns, rowAction?)`** — a typed table from data + column definitions,
+   internally using `eachKeyed` for row identity and rendering via the design system's
+   `dataTable`. Column defs are typed accessors/formatters, not a schema DSL.
+3. **`tabs<T>(data, classifier, views)`** — a tab group derived from classifying a dataset,
+   replacing the hand-written 3-way-tab state machine this pilot needed.
+4. **`statsBar<T>(data, fields)`** — stat cards derived from data + field definitions, over the
+   design system's `metricCard`.
+5. **`mutation<T>(endpoint, { onSuccess })`** — write operations with refetch/close/toast
+   effects, replacing hand-written fetch + error-handle + state-patch ceremony at each call
+   site.
+6. **`panel(trigger, { sections, actions })`** (or a more specific `reviewPanel(row, actions)`)
+   — slide-out detail panels with form fields + action buttons + confirm flows, built on the
+   null-safe-focus need already flagged in the first pilot pass.
+7. **`page(...sections)`** — the outermost combinator: page shell, async boundary wiring, and
+   vertical section composition. This is what ties 1–6 together into the ~50-line page shape.
+
+**Benchmark for this arc**: re-rewrite `page-tutor-marking.ts` (in the busiless repo) a fourth
+time using these combinators, target ~50 lines. Build each combinator only when a real call site
+needs it, test it in isolation, and confirm it's immediately reusable on a second page before
+calling it done — a combinator used once is not yet proven general.
+
 ## Test runner inconsistency
 
 `bun test` at the rainbow repo root tries to run UI/router tests (which need DOM) with bun's runner and fails with "document is not defined". The actual configured runner for those packages is vitest+happy-dom. This is misleading — looks like 93 tests are broken when they aren't.
