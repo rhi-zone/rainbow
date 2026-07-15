@@ -13,7 +13,6 @@ export default defineConfig({
         elements:   'src/elements.ts',
         'form-state': 'src/form-state.ts',
         'reactive-html': 'src/reactive-html.ts',
-        combinators: 'src/combinators.ts',
       },
       name: 'RainbowUi',
       formats: ['es'],

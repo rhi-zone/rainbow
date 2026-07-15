@@ -28,10 +28,6 @@
     "./reactive-html": {
       "import": "./dist/reactive-html.js",
       "types":  "./dist/reactive-html.d.ts"
-    },
-    "./combinators": {
-      "import": "./dist/combinators.js",
-      "types":  "./dist/combinators.d.ts"
     }
   },
   "files": ["dist"],

@@ -34,5 +34,8 @@ export {
   toNextValue,
 } from './async-data.ts'
 
+export type { QueryResult, MutationResult, MutationState } from './query.ts'
+export { query, mutation } from './query.ts'
+
 // Vue adapter (import from 'rainbow/vue' to avoid pulling in Vue as a dependency)
 // export { signalToRef, readonlySignalToRef, refToSignal } from './vue.ts'
