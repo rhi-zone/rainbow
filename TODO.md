@@ -260,35 +260,68 @@ piece of it above the single-element level.
   switching, mutation + refetch plumbing) should get a page like this one down to roughly
   **50 lines** of composed, typed combinator calls.
 
-### Open work: page-level combinator layer (next arc)
+### Page-level combinator layer — landed (2026-07-15)
 
-Concrete primitives to build, in roughly dependency order — each should be a typed function
-returning a composable UI value (not a framework concept, not a config object), rendering via
-the existing design-system components rather than bypassing them:
+`packages/ui/src/combinators.ts`, new subpath export `@rhi-zone/rainbow-ui/combinators`, 38 tests
+in `combinators.test.ts`:
 
-1. **`query<T>(endpoint)`** — typed async data fetch backed by a signal (thin wrapper over the
-   existing `fromAsync`), giving call sites a `Signal<AsyncState<T>>` without hand-rolled fetch
-   + loading-state ceremony.
-2. **`table<T>(data, columns, rowAction?)`** — a typed table from data + column definitions,
-   internally using `eachKeyed` for row identity and rendering via the design system's
-   `dataTable`. Column defs are typed accessors/formatters, not a schema DSL.
-3. **`tabs<T>(data, classifier, views)`** — a tab group derived from classifying a dataset,
-   replacing the hand-written 3-way-tab state machine this pilot needed.
-4. **`statsBar<T>(data, fields)`** — stat cards derived from data + field definitions, over the
-   design system's `metricCard`.
-5. **`mutation<T>(endpoint, { onSuccess })`** — write operations with refetch/close/toast
-   effects, replacing hand-written fetch + error-handle + state-patch ceremony at each call
-   site.
-6. **`panel(trigger, { sections, actions })`** (or a more specific `reviewPanel(row, actions)`)
-   — slide-out detail panels with form fields + action buttons + confirm flows, built on the
-   null-safe-focus need already flagged in the first pilot pass.
-7. **`page(...sections)`** — the outermost combinator: page shell, async boundary wiring, and
-   vertical section composition. This is what ties 1–6 together into the ~50-line page shape.
+- [x] **`query<T>(fetcher)`** — typed async data fetch backed by a signal (wraps `fromAsync`),
+  giving call sites a `QueryResult<T>` (`state: ReadonlyAsyncSignal<T>`, `refetch()`) without
+  hand-rolled fetch + loading-state ceremony. Includes **`query.select(fn, fallback)`** —
+  projects a derived `ReadonlySignal<U>` off the query's success value without unwrapping
+  `AsyncState` at every call site.
+- [x] **`mutation<In, Out>(fn, { onSuccess })`** — write operations with a `MutationResult`
+  (`state`, `run(input)`), replacing hand-written fetch + error-handle + state-patch ceremony.
+  Includes **`mutationBanner(m)`** — a status banner widget derived from a mutation's state
+  (idle/pending/success/error), so call sites don't hand-roll the banner markup.
+- [x] **`table<T>(opts)`** — a typed table from data + column definitions (`header` as string or
+  computed thunk), internally using row identity for in-place update rather than full rebuild.
+  Includes an **`empty`** option (string or widget thunk) rendered in place of the table body
+  when the data array is empty, toggled via display rather than teardown/rebuild.
+- [x] **`tabs<T, K>(opts)`** — a tab group derived from classifying a dataset, replacing a
+  hand-written N-way-tab state machine.
+- [x] **`panel<T>(opts)`** — slide-out/side detail panel over a nullable signal (null-safe
+  focus), with an **`header`** option (string or `Widget<T>`, rendered inside a `<header>`
+  before content; omitted → no header, preserving prior behavior).
 
-**Benchmark for this arc**: re-rewrite `page-tutor-marking.ts` (in the busiless repo) a fourth
-time using these combinators, target ~50 lines. Build each combinator only when a real call site
-needs it, test it in isolation, and confirm it's immediately reusable on a second page before
-calling it done — a combinator used once is not yet proven general.
+**Not built this arc** (deferred, see gaps below): `statsBar<T>(data, fields)` and the outermost
+`page(...sections)` combinator — the re-pilot (below) found the page-shell/stats-bar layer isn't
+the bottleneck; rendering infrastructure (design-system component wiring) is.
+
+### Re-pilot result (2026-07-15): combinators absorb data-flow infra, not rendering infra
+
+`page-tutor-marking.ts` was rewritten a **fourth** time against `query`/`mutation`/`table`/
+`tabs`/`panel`. The combinator layer measurably absorbed data-flow boilerplate (fetch/loading/
+error ceremony, mutation+refetch+banner wiring, tab state machine, null-safe panel focus) but
+**actual marginal entropy on the page came in at ~285 lines, not the ~50 originally estimated.**
+The ~50-line estimate assumed the combinator layer would also absorb *rendering* infrastructure
+(design-system component assembly, per-field form layout, confirm-flow UI) — it doesn't, because
+that infrastructure was never in scope for these five combinators individually. The remaining
+~285 lines are page-specific rendering glue: wiring `table`/`panel`/`tabs` outputs into the
+busiless design-system layout, per-column cell renderers, and the confirm-footer pattern below.
+
+### Remaining gaps (next arc)
+
+- [ ] **`confirm` / confirm-action combinator.** The marking page's confirm-footer pattern
+  (~48 lines: a pending-confirmation state, a "are you sure" footer with confirm/cancel buttons,
+  auto-dismiss/reset on the underlying action changing) is generic — the same shape recurs
+  anywhere a destructive or high-stakes action needs a confirm step — but nothing in
+  `combinators.ts` absorbs it yet. It stayed hand-rolled in the fourth pilot rewrite.
+- [ ] **Widget-typing bridge for busiless design-system components.** Composing rainbow's
+  `Widget<T>`/`Signal<T>` primitives with busiless's existing design-system components
+  (card/stack/cluster/metricCard/dataTable etc.) currently requires ad hoc `run()`/`VOID_SIG`
+  shims at each call site to satisfy the type boundary between the two systems. This is a
+  systemic gap, not a one-off — every combinator that renders through a design-system component
+  pays this tax. Worth a proper adapter/bridge rather than per-call-site shimming.
+- [ ] **Dependent queries** — `query(fetcher, { dependsOn })`, so a second query can key off a
+  first query's resolved value (e.g. fetch detail once a list/id is selected) without the call
+  site hand-rolling the `computed`/`fromAsync` chaining. Not needed by the marking page pilot but
+  came up as an evident near-term need for any master-detail page.
+
+**Benchmark note for future arcs**: re-rewriting the same page a fifth time is not the right next
+step — the fourth pilot already established the ceiling of what these five combinators alone can
+absorb. The next combinator (`confirm`, or a widget-bridge helper) should be validated by finding
+a *second* call site before being called general, per the standing rule below.
 
 ## Test runner inconsistency
 
