@@ -152,24 +152,24 @@ stats bar, 3-way tabs, 2 tables, a review side-panel with a feedback textarea) w
 benchmark to find rainbow's current limits: rewritten with only today's primitives (no new
 combinators), read `reactive-html.ts` / `widget.ts` / `signal.ts` first. Findings:
 
-- [ ] **`signal.patch()` helper.** The get-spread-set ceremony —
-  `const c = sig.get(); sig.set({...c, field: value})` — appears ~15 times in one page alone
-  (~40 lines). `sig.patch({ field: value })` (or `patch(fn: (c) => Partial<T>)` for
-  derived fields) would collapse each site to one line. Especially valuable on nullable
-  composite signals (`Signal<Foo | null>`) where `focus`/lens composition doesn't apply
-  cleanly without first narrowing away `null`.
+- [x] **`signal.patch()` helper.** Added `patch(partial: Partial<A>): void` to the `Signal<A>`
+  interface (`packages/core/src/signal.ts`) — `sig.patch({ field: value })` is sugar for
+  `sig.set({ ...sig.get(), ...partial })`. Implemented on `RootSignal`, `FocusedSignal`,
+  `NarrowedSignal` (signal.ts) and `ProductSignal` (product.ts) — every concrete `Signal`
+  implementer. Tests in `signal.test.ts` (`describe('signal.patch')`), including patching
+  through a `focus`ed signal.
 
-- [ ] **`AsyncBoundary` component** — generic loading/success/failure dispatch for
-  `Signal<AsyncData<T>>`. `widget.ts` already has `foldWidget` which is *most* of this, but
-  it wasn't reachable for a top-level "gate the whole page on load state, keep skeleton/error/
-  content permanently mounted with visibility toggle rather than teardown/rebuild" pattern —
-  every page re-derives that ~15-line dispatch by hand (skeleton el, error el, content el,
-  manual `d.status === ...` visibility wiring). Worth either promoting `foldWidget` in docs as
-  the answer, or adding a `AsyncBoundary(loadingWidget, errorWidget, successWidget)` that does
-  the "keep all three mounted, toggle display" strategy `foldWidget` doesn't (it tears down
-  and rebuilds the inner widget on every state change, which is wrong for a top-level page
-  gate where the skeleton has no state worth preserving but re-creating it costs nothing next
-  to avoiding needless churn).
+- [x] **`AsyncBoundary` component** — added to `packages/ui/src/widget.ts`, exported from the
+  package root. `AsyncBoundary(s, { loading, failure, success })` mounts the `loading` subtree
+  eagerly and the `failure`/`success` subtrees lazily on first occurrence of their state, then
+  only ever toggles `display` afterward — never tears down/rebuilds (unlike `foldWidget`,
+  which is left as-is for cases that want a fresh child per state change). `notAsked` and
+  `loading` share the `loading` widget — no separate render function, since a top-level page
+  gate has nothing more meaningful to show before the first request starts. Known limitation:
+  because `success`/`failure` are mounted once, a second `success`/`failure` with a *different*
+  value/error does not update the already-mounted DOM (no re-render) — acceptable for the
+  page-gate use case (loading → success|failure once), not for a value that keeps changing
+  after first success. Tests in `widget.test.ts` (`describe('AsyncBoundary')`).
 
 - [ ] **Keyed list rendering wired into the DOM/reactive-html builder layer.**
   `eachKeyed` exists in `widget.ts` (Signal-based widget combinator) but `reactive-html.ts`

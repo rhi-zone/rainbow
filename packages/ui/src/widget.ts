@@ -1010,6 +1010,88 @@ export function foldWidget<T, E>(
   return { _tag: "div", node }
 }
 
+/**
+ * Top-level "gate the whole page on load state" combinator for
+ * `Signal<AsyncData<T, E>>`. Unlike `foldWidget` — which tears down and
+ * rebuilds the inner widget on every state change — `AsyncBoundary` mounts
+ * the loading, failure, and success subtrees at most once each and toggles
+ * `display` to switch between them. This avoids needless churn (and, for
+ * `success`, DOM/subscription rebuilds) when a page cycles between states
+ * (e.g. a refetch that briefly re-enters `loading`).
+ *
+ * The `loading` widget covers both `notAsked` and `loading` — there is no
+ * separate render function for `notAsked` since a top-level page gate has
+ * nothing meaningful to show before the first request starts other than the
+ * same skeleton it shows while in flight. The `loading` widget is mounted
+ * eagerly (it takes no data); `failure` and `success` are mounted lazily, on
+ * first occurrence of their state, since they need `error`/`value` to render
+ * and none exists yet before that.
+ *
+ * Must be called during a widget call context.
+ *
+ * @example
+ * AsyncBoundary(contactSignal, {
+ *   loading: () => h.div({}, "Loading…")(voidSignal),
+ *   failure: (err) => h.div({}, String(err))(voidSignal),
+ *   success: (contact) => renderContact(contact),
+ * })
+ */
+export function AsyncBoundary<T, E>(
+  s: Signal<AsyncData<T, E>> | ReadonlySignal<AsyncData<T, E>>,
+  cases: {
+    loading: () => AnyEl
+    failure: (error: E) => AnyEl
+    success: (value: T) => AnyEl
+  },
+): DivEl {
+  const node = document.createElement("div")
+  node.dataset["asyncBoundary"] = ""
+
+  let loadingEl: AnyEl | null = null
+  let failureEl: AnyEl | null = null
+  let successEl: AnyEl | null = null
+
+  const mountOnce = (
+    current: AnyEl | null,
+    render: () => AnyEl,
+  ): AnyEl => {
+    if (current !== null) return current
+    const [el, cleanup] = _track(render)
+    node.appendChild(el.node)
+    _register(cleanup)
+    return el
+  }
+
+  const showOnly = (active: AnyEl) => {
+    for (const el of [loadingEl, failureEl, successEl]) {
+      if (el !== null) el.node.style.display = el === active ? "" : "none"
+    }
+  }
+
+  const update = (ad: AsyncData<T, E>) => {
+    switch (ad.status) {
+      case "notAsked":
+      case "loading":
+        loadingEl = mountOnce(loadingEl, cases.loading)
+        showOnly(loadingEl)
+        break
+      case "failure":
+        failureEl = mountOnce(failureEl, () => cases.failure(ad.error))
+        showOnly(failureEl)
+        break
+      case "success":
+        successEl = mountOnce(successEl, () => cases.success(ad.value))
+        showOnly(successEl)
+        break
+    }
+  }
+
+  update(s.get())
+  subscribe(s, update)
+
+  return { _tag: "div", node }
+}
+
 // ── Pre-built form widgets ────────────────────────────────────────────────────
 
 /**

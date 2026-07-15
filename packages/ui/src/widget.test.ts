@@ -40,6 +40,7 @@ import {
   bindClass,
   foldWidget,
   match,
+  AsyncBoundary,
 } from "./widget.js"
 import * as h from "./html.js"
 
@@ -1222,6 +1223,98 @@ describe("foldWidget", () => {
     const unmount = mount(w, s, root)
     // loading case has no handler — container should be empty
     expect(root.querySelector("[data-fold-widget]")!.children).toHaveLength(0)
+    cleanup(root, unmount)
+  })
+})
+
+// ── AsyncBoundary ────────────────────────────────────────────────────────────
+
+describe("AsyncBoundary", () => {
+  type AD = import("@rhi-zone/rainbow").AsyncData<string, string>
+
+  function makeSpan(text: string): h.AnyEl {
+    const node = document.createElement("span")
+    node.textContent = text
+    return { _tag: "span", node } as h.AnyEl
+  }
+
+  it("shows loading for notAsked and loading, hides others", () => {
+    const root = makeRoot()
+    const s = signal<AD>(notAsked)
+    const w: Widget<AD> = (sig) =>
+      AsyncBoundary(sig, {
+        loading: () => makeSpan("loading"),
+        failure: (e) => makeSpan(`error:${e}`),
+        success: (v) => makeSpan(`ok:${v}`),
+      })
+    const unmount = mount(w, s, root)
+    const spans = root.querySelectorAll("span")
+    expect(spans).toHaveLength(1) // failure/success not mounted yet — no value/error to render
+    expect(spans[0]!.textContent).toBe("loading")
+    expect((spans[0] as HTMLElement).style.display).toBe("")
+
+    s.set(loading)
+    expect(root.querySelectorAll("span")).toHaveLength(1)
+    expect(root.querySelector("span")!.textContent).toBe("loading")
+    cleanup(root, unmount)
+  })
+
+  it("mounts success once and toggles visibility without rebuilding on repeat successes", () => {
+    const root = makeRoot()
+    const s = signal<AD>(loading)
+    const w: Widget<AD> = (sig) =>
+      AsyncBoundary(sig, {
+        loading: () => makeSpan("loading"),
+        failure: (e) => makeSpan(`error:${e}`),
+        success: (v) => makeSpan(`ok:${v}`),
+      })
+    const unmount = mount(w, s, root)
+
+    s.set(success("first"))
+    expect(root.querySelectorAll("span")).toHaveLength(2) // loading + success both mounted
+    const successNode = [...root.querySelectorAll("span")].find(
+      (el) => (el as HTMLElement).style.display !== "none",
+    )!
+    expect(successNode.textContent).toBe("ok:first")
+
+    // Go back to loading, then success again — success subtree must be the SAME node,
+    // never rebuilt (AsyncBoundary mounts each case's widget at most once and
+    // thereafter only toggles visibility — it does not re-invoke `success` with the
+    // new value, unlike `foldWidget`).
+    s.set(loading)
+    s.set(success("second"))
+    const spansAfter = [...root.querySelectorAll("span")]
+    expect(spansAfter).toHaveLength(2) // still only 2 — no new success subtree created
+    expect(spansAfter).toContain(successNode)
+    expect(successNode!.textContent).toBe("ok:first") // unchanged — mounted once, not rebuilt
+    cleanup(root, unmount)
+  })
+
+  it("mounts failure lazily and toggles between failure and success", () => {
+    const root = makeRoot()
+    const s = signal<AD>(loading)
+    const w: Widget<AD> = (sig) =>
+      AsyncBoundary(sig, {
+        loading: () => makeSpan("loading"),
+        failure: (e) => makeSpan(`error:${e}`),
+        success: (v) => makeSpan(`ok:${v}`),
+      })
+    const unmount = mount(w, s, root)
+
+    s.set(failure("boom"))
+    expect(root.querySelectorAll("span")).toHaveLength(2) // loading + failure
+    let visible = [...root.querySelectorAll("span")].find(
+      (el) => (el as HTMLElement).style.display !== "none",
+    )!
+    expect(visible.textContent).toBe("error:boom")
+
+    s.set(success("data"))
+    expect(root.querySelectorAll("span")).toHaveLength(3) // loading + failure + success
+    visible = [...root.querySelectorAll("span")].find(
+      (el) => (el as HTMLElement).style.display !== "none",
+    )!
+    expect(visible.textContent).toBe("ok:data")
+
     cleanup(root, unmount)
   })
 })
