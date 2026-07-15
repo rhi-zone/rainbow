@@ -68,7 +68,7 @@
       "name": "@rhi-zone/rainbow-url",
       "version": "0.2.0-alpha.0",
       "dependencies": {
-        "@rhi-zone/rainbow": "0.2.0-alpha.0",
+        "@rhi-zone/rainbow": "workspace:*",
       },
       "devDependencies": {
         "happy-dom": "^16.0.0",
@@ -353,8 +353,6 @@
     "why-is-node-running": ["why-is-node-running@2.3.0", "", { "dependencies": { "siginfo": "^2.0.0", "stackback": "0.0.2" }, "bin": { "why-is-node-running": "cli.js" } }, "sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w=="],
 
     "@rhi-zone/rainbow-router/@rhi-zone/rainbow": ["@rhi-zone/rainbow@0.2.0-alpha.0", "", {}, "sha512-qV729IGzLsvi/pbrUtChuaImZu/VAu2RNjgJHWlBYtyWthVlKHA23AZTFqcab+C8hCMU9zZHlu9Js05GvGfiiw=="],
-
-    "@rhi-zone/rainbow-url/@rhi-zone/rainbow": ["@rhi-zone/rainbow@0.2.0-alpha.0", "", {}, "sha512-qV729IGzLsvi/pbrUtChuaImZu/VAu2RNjgJHWlBYtyWthVlKHA23AZTFqcab+C8hCMU9zZHlu9Js05GvGfiiw=="],
 
     "@vue/compiler-core/estree-walker": ["estree-walker@2.0.2", "", {}, "sha512-Rfkk/Mp/DL7JVje3u18FxFujQlTNR2q6QfMSMB7AvCBx91NGj/ba3kCfza0f6dVDbw7YlRf/nDrn7pQrCCyQ/w=="],
 

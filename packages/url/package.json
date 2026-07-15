@@ -18,7 +18,7 @@
     "test":      "vitest run"
   },
   "dependencies": {
-    "@rhi-zone/rainbow": "0.2.0-alpha.0"
+    "@rhi-zone/rainbow": "workspace:*"
   },
   "devDependencies": {
     "happy-dom": "^16.0.0",

@@ -26,7 +26,19 @@
  */
 
 import { type Signal, computed } from "@rhi-zone/rainbow"
-import { text, textNode, type AnyEl, type El, type GlobalAttrs } from "./html.js"
+import {
+  text, textNode,
+  type AnyEl, type El, type GlobalAttrs,
+  type AAttrs, type ButtonAttrs, type FormAttrs, type ImgAttrs, type InputAttrs,
+  type LabelAttrs, type LinkAttrs, type MetaAttrs, type OptionAttrs, type ScriptAttrs,
+  type SelectAttrs, type TextareaAttrs, type VideoAttrs, type AudioAttrs, type SourceAttrs,
+  type ThAttrs, type TdAttrs, type OlAttrs, type SvgAttrs, type IframeAttrs,
+  type CircleAttrs, type EllipseAttrs, type RectAttrs, type LineAttrs, type PolylineAttrs,
+  type PolygonAttrs, type PathAttrs, type TextAttrs, type TspanAttrs, type GAttrs,
+  type DefsAttrs, type SymbolAttrs, type UseAttrs, type ClipPathAttrs, type MaskAttrs,
+  type LinearGradientAttrs, type RadialGradientAttrs, type StopAttrs, type PatternAttrs,
+  type SvgImageAttrs, type ForeignObjectAttrs,
+} from "./html.js"
 import { subscribe, type RChild, type Widget } from "./widget.js"
 
 // ── Reactive attribute types ──────────────────────────────────────────────────
@@ -75,15 +87,16 @@ function applyReactiveContent(node: Element, content: Reactive<string> | undefin
 
 /**
  * Build a reactive element factory for `tag`. Returns a function that
- * accepts `ReactiveAttrs<GlobalAttrs>` and spread `RChild<T>` children, and
- * produces a `Widget<T, El<tag, N>>` — same call shape as `h.*`.
+ * accepts `ReactiveAttrs<A>` (defaulting to `GlobalAttrs` when the tag has
+ * no specialized attrs type in `html.ts`) and spread `RChild<T>` children,
+ * and produces a `Widget<T, El<tag, N>>` — same call shape as `h.*`.
  */
-function _reactiveEl<Tag extends keyof HTMLElementTagNameMap>(tag: Tag) {
+function _reactiveEl<Tag extends keyof HTMLElementTagNameMap, A = GlobalAttrs>(tag: Tag) {
   type N = HTMLElementTagNameMap[Tag]
   type E = El<Tag & string, N>
   // Written as an expanded function type, mirroring `_reactive` in widget.ts,
   // to avoid the `E extends AnyEl` constraint on the Widget<T, E> alias.
-  return <T>(attrs: ReactiveAttrs<GlobalAttrs>, ...children: RChild<T>[]): ((s: Signal<T>) => E) => {
+  return <T>(attrs: ReactiveAttrs<A>, ...children: RChild<T>[]): ((s: Signal<T>) => E) => {
     return (s: Signal<T>): E => {
       const node = document.createElement(tag) as HTMLElement
       applyReactiveAttrs(node, attrs as Record<string, unknown>)
@@ -100,10 +113,10 @@ function _reactiveEl<Tag extends keyof HTMLElementTagNameMap>(tag: Tag) {
 }
 
 /** Factory for reactive void elements — no children, e.g. `<img>`, `<input>`. */
-function _reactiveVoid<Tag extends keyof HTMLElementTagNameMap>(tag: Tag) {
+function _reactiveVoid<Tag extends keyof HTMLElementTagNameMap, A = GlobalAttrs>(tag: Tag) {
   type N = HTMLElementTagNameMap[Tag]
   type E = El<Tag & string, N>
-  return <T>(attrs: ReactiveAttrs<GlobalAttrs>): ((s: Signal<T>) => E) => {
+  return <T>(attrs: ReactiveAttrs<A>): ((s: Signal<T>) => E) => {
     return (_s: Signal<T>): E => {
       const node = document.createElement(tag) as HTMLElement
       applyReactiveAttrs(node, attrs as Record<string, unknown>)
@@ -117,10 +130,10 @@ function _reactiveVoid<Tag extends keyof HTMLElementTagNameMap>(tag: Tag) {
  * child elements (`<script>`, `<style>`, `<title>`, `<option>`, `<textarea>`).
  * `content` accepts a thunk, same as attributes.
  */
-function _reactiveContent<Tag extends keyof HTMLElementTagNameMap>(tag: Tag) {
+function _reactiveContent<Tag extends keyof HTMLElementTagNameMap, A = GlobalAttrs>(tag: Tag) {
   type N = HTMLElementTagNameMap[Tag]
   type E = El<Tag & string, N>
-  return <T>(attrs: ReactiveAttrs<GlobalAttrs>, content?: Reactive<string>): ((s: Signal<T>) => E) => {
+  return <T>(attrs: ReactiveAttrs<A>, content?: Reactive<string>): ((s: Signal<T>) => E) => {
     return (_s: Signal<T>): E => {
       const node = document.createElement(tag) as HTMLElement
       applyReactiveAttrs(node, attrs as Record<string, unknown>)
@@ -131,9 +144,9 @@ function _reactiveContent<Tag extends keyof HTMLElementTagNameMap>(tag: Tag) {
 }
 
 /** Factory for reactive SVG child elements (with children), e.g. `<g>`, `<defs>`. */
-function _reactiveSvgEl<Tag extends string, N extends SVGElement>(tag: Tag) {
+function _reactiveSvgEl<Tag extends string, N extends SVGElement, A = GlobalAttrs>(tag: Tag) {
   type E = El<Tag, N>
-  return <T>(attrs: ReactiveAttrs<GlobalAttrs>, ...children: RChild<T>[]): ((s: Signal<T>) => E) => {
+  return <T>(attrs: ReactiveAttrs<A>, ...children: RChild<T>[]): ((s: Signal<T>) => E) => {
     return (s: Signal<T>): E => {
       const node = document.createElementNS(SVG_NS, tag) as unknown as N
       applyReactiveAttrs(node as unknown as Element, attrs as Record<string, unknown>)
@@ -150,9 +163,9 @@ function _reactiveSvgEl<Tag extends string, N extends SVGElement>(tag: Tag) {
 }
 
 /** Factory for reactive void SVG child elements (no children), e.g. `<circle>`, `<use>`. */
-function _reactiveSvgVoid<Tag extends string, N extends SVGElement>(tag: Tag) {
+function _reactiveSvgVoid<Tag extends string, N extends SVGElement, A = GlobalAttrs>(tag: Tag) {
   type E = El<Tag, N>
-  return <T>(attrs: ReactiveAttrs<GlobalAttrs>): ((s: Signal<T>) => E) => {
+  return <T>(attrs: ReactiveAttrs<A>): ((s: Signal<T>) => E) => {
     return (_s: Signal<T>): E => {
       const node = document.createElementNS(SVG_NS, tag) as unknown as N
       applyReactiveAttrs(node as unknown as Element, attrs as Record<string, unknown>)
@@ -173,13 +186,13 @@ function _reactiveSvgVoid<Tag extends string, N extends SVGElement>(tag: Tag) {
  */
 export const r = {
   // Document structure
-  htmlEl:   _reactiveEl("html"),
+  htmlEl:   _reactiveEl<"html", GlobalAttrs & { lang?: string }>("html"),
   head:     _reactiveEl("head"),
   body:     _reactiveEl("body"),
   // Metadata
-  meta:     _reactiveVoid("meta"),
-  link:     _reactiveVoid("link"),
-  script:   _reactiveContent("script"),
+  meta:     _reactiveVoid<"meta", MetaAttrs>("meta"),
+  link:     _reactiveVoid<"link", LinkAttrs>("link"),
+  script:   _reactiveContent<"script", ScriptAttrs>("script"),
   style:    _reactiveContent("style"),
   title_:   _reactiveContent("title"),
   // Sectioning / flow
@@ -201,7 +214,7 @@ export const r = {
   // Phrasing
   p:        _reactiveEl("p"),
   span:     _reactiveEl("span"),
-  a:        _reactiveEl("a"),
+  a:        _reactiveEl<"a", AAttrs>("a"),
   em:       _reactiveEl("em"),
   strong:   _reactiveEl("strong"),
   code:     _reactiveEl("code"),
@@ -215,10 +228,10 @@ export const r = {
   br: <T>(): ((s: Signal<T>) => El<"br", HTMLBRElement>) =>
     (_s: Signal<T>): El<"br", HTMLBRElement> => ({ _tag: "br", node: document.createElement("br") }),
   hr:       _reactiveVoid("hr"),
-  img:      _reactiveVoid("img"),
+  img:      _reactiveVoid<"img", ImgAttrs>("img"),
   // Lists
   ul:       _reactiveEl("ul"),
-  ol:       _reactiveEl("ol"),
+  ol:       _reactiveEl<"ol", OlAttrs>("ol"),
   li:       _reactiveEl("li"),
   dl:       _reactiveEl("dl"),
   dt:       _reactiveEl("dt"),
@@ -229,47 +242,47 @@ export const r = {
   tbody:    _reactiveEl("tbody"),
   tfoot:    _reactiveEl("tfoot"),
   tr:       _reactiveEl("tr"),
-  th:       _reactiveEl("th"),
-  td:       _reactiveEl("td"),
+  th:       _reactiveEl<"th", ThAttrs>("th"),
+  td:       _reactiveEl<"td", TdAttrs>("td"),
   // Forms
-  form:     _reactiveEl("form"),
-  input:    _reactiveVoid("input"),
-  label:    _reactiveEl("label"),
+  form:     _reactiveEl<"form", FormAttrs>("form"),
+  input:    _reactiveVoid<"input", InputAttrs>("input"),
+  label:    _reactiveEl<"label", LabelAttrs>("label"),
   fieldset: _reactiveEl("fieldset"),
   legend:   _reactiveEl("legend"),
-  select:   _reactiveEl("select"),
-  option:   _reactiveContent("option"),
-  textarea: _reactiveContent("textarea"),
-  button:   _reactiveEl("button"),
+  select:   _reactiveEl<"select", SelectAttrs>("select"),
+  option:   _reactiveContent<"option", OptionAttrs>("option"),
+  textarea: _reactiveContent<"textarea", TextareaAttrs>("textarea"),
+  button:   _reactiveEl<"button", ButtonAttrs>("button"),
   // Media / embedded
-  iframe:   _reactiveVoid("iframe"),
-  video:    _reactiveEl("video"),
-  audio:    _reactiveEl("audio"),
-  source:   _reactiveVoid("source"),
-  canvas:   _reactiveVoid("canvas"),
-  svg:      _reactiveSvgEl<"svg", SVGSVGElement>("svg"),
+  iframe:   _reactiveVoid<"iframe", IframeAttrs>("iframe"),
+  video:    _reactiveEl<"video", VideoAttrs>("video"),
+  audio:    _reactiveEl<"audio", AudioAttrs>("audio"),
+  source:   _reactiveVoid<"source", SourceAttrs>("source"),
+  canvas:   _reactiveVoid<"canvas", GlobalAttrs & { width?: string; height?: string }>("canvas"),
+  svg:      _reactiveSvgEl<"svg", SVGSVGElement, SvgAttrs>("svg"),
   // SVG child elements
-  circle:         _reactiveSvgVoid<"circle", SVGCircleElement>("circle"),
-  ellipse:        _reactiveSvgVoid<"ellipse", SVGEllipseElement>("ellipse"),
-  rect:           _reactiveSvgVoid<"rect", SVGRectElement>("rect"),
-  line:           _reactiveSvgVoid<"line", SVGLineElement>("line"),
-  polyline:       _reactiveSvgVoid<"polyline", SVGPolylineElement>("polyline"),
-  polygon:        _reactiveSvgVoid<"polygon", SVGPolygonElement>("polygon"),
-  path:           _reactiveSvgVoid<"path", SVGPathElement>("path"),
-  svgText:        _reactiveSvgEl<"text", SVGTextElement>("text"),
-  tspan:          _reactiveSvgEl<"tspan", SVGTSpanElement>("tspan"),
-  g:              _reactiveSvgEl<"g", SVGGElement>("g"),
-  defs:           _reactiveSvgEl<"defs", SVGDefsElement>("defs"),
-  symbol:         _reactiveSvgEl<"symbol", SVGSymbolElement>("symbol"),
-  use:            _reactiveSvgVoid<"use", SVGUseElement>("use"),
-  clipPath:       _reactiveSvgEl<"clipPath", SVGClipPathElement>("clipPath"),
-  mask:           _reactiveSvgEl<"mask", SVGMaskElement>("mask"),
-  linearGradient: _reactiveSvgEl<"linearGradient", SVGLinearGradientElement>("linearGradient"),
-  radialGradient: _reactiveSvgEl<"radialGradient", SVGRadialGradientElement>("radialGradient"),
-  stop:           _reactiveSvgVoid<"stop", SVGStopElement>("stop"),
-  pattern:        _reactiveSvgEl<"pattern", SVGPatternElement>("pattern"),
-  svgImage:       _reactiveSvgVoid<"image", SVGImageElement>("image"),
-  foreignObject:  _reactiveSvgEl<"foreignObject", SVGForeignObjectElement>("foreignObject"),
+  circle:         _reactiveSvgVoid<"circle", SVGCircleElement, CircleAttrs>("circle"),
+  ellipse:        _reactiveSvgVoid<"ellipse", SVGEllipseElement, EllipseAttrs>("ellipse"),
+  rect:           _reactiveSvgVoid<"rect", SVGRectElement, RectAttrs>("rect"),
+  line:           _reactiveSvgVoid<"line", SVGLineElement, LineAttrs>("line"),
+  polyline:       _reactiveSvgVoid<"polyline", SVGPolylineElement, PolylineAttrs>("polyline"),
+  polygon:        _reactiveSvgVoid<"polygon", SVGPolygonElement, PolygonAttrs>("polygon"),
+  path:           _reactiveSvgVoid<"path", SVGPathElement, PathAttrs>("path"),
+  svgText:        _reactiveSvgEl<"text", SVGTextElement, TextAttrs>("text"),
+  tspan:          _reactiveSvgEl<"tspan", SVGTSpanElement, TspanAttrs>("tspan"),
+  g:              _reactiveSvgEl<"g", SVGGElement, GAttrs>("g"),
+  defs:           _reactiveSvgEl<"defs", SVGDefsElement, DefsAttrs>("defs"),
+  symbol:         _reactiveSvgEl<"symbol", SVGSymbolElement, SymbolAttrs>("symbol"),
+  use:            _reactiveSvgVoid<"use", SVGUseElement, UseAttrs>("use"),
+  clipPath:       _reactiveSvgEl<"clipPath", SVGClipPathElement, ClipPathAttrs>("clipPath"),
+  mask:           _reactiveSvgEl<"mask", SVGMaskElement, MaskAttrs>("mask"),
+  linearGradient: _reactiveSvgEl<"linearGradient", SVGLinearGradientElement, LinearGradientAttrs>("linearGradient"),
+  radialGradient: _reactiveSvgEl<"radialGradient", SVGRadialGradientElement, RadialGradientAttrs>("radialGradient"),
+  stop:           _reactiveSvgVoid<"stop", SVGStopElement, StopAttrs>("stop"),
+  pattern:        _reactiveSvgEl<"pattern", SVGPatternElement, PatternAttrs>("pattern"),
+  svgImage:       _reactiveSvgVoid<"image", SVGImageElement, SvgImageAttrs>("image"),
+  foreignObject:  _reactiveSvgEl<"foreignObject", SVGForeignObjectElement, ForeignObjectAttrs>("foreignObject"),
   // Text utilities — re-exported as-is, not element factories, but kept here
   // so `r` has full key parity with every export of `html.ts`.
   text,
