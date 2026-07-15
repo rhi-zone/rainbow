@@ -145,6 +145,85 @@ Current dist-tags:
 - [ ] Verify exports.types is in correct position (must precede `import`/`require` in conditional exports)
 - [ ] Confirm version bump makes sense relative to what's on npm
 
+## Pilot findings — busiless `page-tutor-marking.ts` (2026-07, 828 lines)
+
+A real 828-line busiless page (`apps/web/src/client/components/tutor/page-tutor-marking.ts` —
+stats bar, 3-way tabs, 2 tables, a review side-panel with a feedback textarea) was used as a
+benchmark to find rainbow's current limits: rewritten with only today's primitives (no new
+combinators), read `reactive-html.ts` / `widget.ts` / `signal.ts` first. Findings:
+
+- [ ] **`signal.patch()` helper.** The get-spread-set ceremony —
+  `const c = sig.get(); sig.set({...c, field: value})` — appears ~15 times in one page alone
+  (~40 lines). `sig.patch({ field: value })` (or `patch(fn: (c) => Partial<T>)` for
+  derived fields) would collapse each site to one line. Especially valuable on nullable
+  composite signals (`Signal<Foo | null>`) where `focus`/lens composition doesn't apply
+  cleanly without first narrowing away `null`.
+
+- [ ] **`AsyncBoundary` component** — generic loading/success/failure dispatch for
+  `Signal<AsyncData<T>>`. `widget.ts` already has `foldWidget` which is *most* of this, but
+  it wasn't reachable for a top-level "gate the whole page on load state, keep skeleton/error/
+  content permanently mounted with visibility toggle rather than teardown/rebuild" pattern —
+  every page re-derives that ~15-line dispatch by hand (skeleton el, error el, content el,
+  manual `d.status === ...` visibility wiring). Worth either promoting `foldWidget` in docs as
+  the answer, or adding a `AsyncBoundary(loadingWidget, errorWidget, successWidget)` that does
+  the "keep all three mounted, toggle display" strategy `foldWidget` doesn't (it tears down
+  and rebuilds the inner widget on every state change, which is wrong for a top-level page
+  gate where the skeleton has no state worth preserving but re-creating it costs nothing next
+  to avoiding needless churn).
+
+- [ ] **Keyed list rendering wired into the DOM/reactive-html builder layer.**
+  `eachKeyed` exists in `widget.ts` (Signal-based widget combinator) but `reactive-html.ts`
+  (`r.*`, thunk-attribute builders) has no equivalent — and neither module has `table`/`tr`/
+  `td`/`th` factories at all (only div/span/headings/lists/basic forms), so a table body of
+  rows keyed by id currently has to be hand-rolled with `tbody.replaceChildren()` +
+  full-rebuild-on-any-change, exactly the pattern rainbow is supposed to eliminate.
+
+- [ ] **Table + form element coverage gap in `reactive-html.ts` / `h.*`.** Neither the thunk-
+  attribute reactive builders (`r.*`) nor the plain reactive hyperscript (`h.*` in
+  `widget.ts`) include `table`, `thead`, `tbody`, `tr`, `th`, `td`, `input`, or `textarea` —
+  only the static (non-reactive) factories in `html.ts` do. Any page with a data table or a
+  form input is forced to drop out of the reactive-hyperscript style entirely for those nodes
+  and fall back to manual `bindText`/`bindAttr`/`bindShow`/`bindInput` wiring on
+  `document.createElement` nodes. This was the single biggest reason the rewrite didn't shrink
+  the page — the persistent-DOM/in-place-update discipline is achievable today, but only by
+  hand-writing the wiring `r.*` would otherwise generate, which is *more* code than the
+  original nuke-and-rebuild `render()`, not less. Extending `r.*` (and ideally `h.*`) to cover
+  table and form elements is the highest-leverage of these five items for this page's shape.
+
+- [ ] **Composite signal decomposition via `focus`/`narrow` in the DOM layer, made the default
+  path.** The optics (`focus`, `field`, lenses) exist and `widget.ts`'s `focus` combinator
+  works, but it assumes a non-nullable product signal. The review-panel state here is
+  `Signal<ReviewPanelState | null>` — the common "detail panel that doesn't exist until
+  something is selected" shape — and composing `focus` through that null case wasn't
+  straightforward without first hand-rolling a narrow/gate. A guide or helper for
+  "`focus` into a field of a *possibly-null* composite signal, only live while non-null"
+  would make per-field binding (e.g. a two-way-bound textarea) the natural default instead of
+  the manual get/set-with-dedup-guard pattern `bindInput` currently requires call sites to
+  half-reimplement for non-`Signal<string>` sources.
+
+- [ ] **Per-section reactive scopes are achievable today but verbose.** Splitting a monolithic
+  `render()` into independently-subscribed sections (stats bar reacts only to `statsData`, job
+  table only to `data`+`activeTab`, submissions table only to `submissionsData`, etc.) works
+  with today's `subscribeNow`/`watchAll`/`register`, and it does fix the real bug this page had
+  (a textarea losing focus every keystroke because the whole panel — including the textarea
+  the user was typing into — was torn down and rebuilt by a single `render()` reacting to
+  every signal, including the one the keystroke itself was writing to). But doing it by hand
+  costs real lines: each section needs its own wrapper div + named render function + explicit
+  dependency list, where a first-class "reactive scope" primitive (something like
+  `scope(widgetFn, deps)`, or leaning harder on `r.*`/`h.*` once they cover tables/forms) could
+  fold most of that boilerplate away.
+
+**Net line count**: rewrite came in at 855 lines vs. 828 original — *larger*, not smaller.
+The persistent-DOM/in-place-update discipline this pilot was asked to demonstrate is real and
+does fix a real bug, but every one of the five gaps above pushed the line count up rather than
+down: no `patch()` meant the get-spread-set ceremony survived unchanged; no table/input/
+textarea coverage in `r.*`/`h.*` meant manual `bind*` wiring instead of thunk attributes; no
+`AsyncBoundary` meant hand-writing the three-way skeleton/error/content gate; no null-safe
+`focus` meant manual dedup-guarded two-way binding for the textarea and grade input; no scope
+primitive meant a wrapper div + named function per independent section. The original estimate
+(30–40% reduction) assumed these primitives already existed in the DOM/table-aware form they'd
+need to take — building the primitives first, then re-piloting, is the fair test.
+
 ## Test runner inconsistency
 
 `bun test` at the rainbow repo root tries to run UI/router tests (which need DOM) with bun's runner and fails with "document is not defined". The actual configured runner for those packages is vitest+happy-dom. This is misleading — looks like 93 tests are broken when they aren't.
