@@ -1,5 +1,5 @@
 {
-  "name": "rainbow-monorepo",
+  "name": "@rhi-zone/rainbow-monorepo",
   "private": true,
   "type": "module",
   "workspaces": ["packages/*", "examples/*"],

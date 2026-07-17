@@ -1,5 +1,5 @@
 {
-  "name": "rainbow-docs",
+  "name": "@rhi-zone/rainbow-docs",
   "private": true,
   "scripts": {
     "dev": "vitepress dev",
