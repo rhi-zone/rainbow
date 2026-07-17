@@ -66,6 +66,10 @@ q.set('')                                  // removes the key
 params.destroy()
 ```
 
+## Docs
+
+Full guides, API reference, and design notes are at the [Rainbow VitePress site](https://rhi.zone/rainbow/).
+
 ## License
 
 MIT

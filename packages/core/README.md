@@ -49,3 +49,7 @@ summary.get()     // 'Bob has visited 0 times'
 ## Docs
 
 Full guides, API reference, and design notes are at the [Rainbow VitePress site](https://rhi.zone/rainbow/).
+
+## License
+
+MIT

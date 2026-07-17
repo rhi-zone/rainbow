@@ -1,5 +1,8 @@
 # Rainbow
 
+[![npm version](https://img.shields.io/npm/v/@rhi-zone/rainbow.svg)](https://www.npmjs.com/package/@rhi-zone/rainbow)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
 Optics-based reactivity for the web.
 
 Part of the [rhi ecosystem](https://rhi.zone).
@@ -10,25 +13,10 @@ Most UI state management frameworks give you primitives but no algebra. Derived 
 
 The design is grounded in [Unicorn](https://github.com/art-w/unicorn), an OCaml UI library that proves the same model with 7 combinators. Rainbow is that insight in TypeScript, with signals as the execution layer.
 
-## What's implemented
-
-- `Lens<A, B>` — get/set with composition, `field()`, `fst()`, `snd()`, `id()`
-- `Prism<A, B>` — match/inject with composition, `some()`, `iso()`
-- `Signal<A>` — reactive cell with `map()`, `focus(lens)`, `narrow(prism)`
-- `computed()` — derived signal from multiple sources
-- `cond()` — conditional combinator with composition law
-- `Traversal<A, B>` — `each()`, `filtered()`, `nth()`, `composeWithLens()`, `composeTraversal()`
-- `product()` / `stateful()` — pair signals, encapsulate local state
-- `batch()` — deferred, deduplicated notification flush
-- React adapter — `useSignal()` / `useReadonlySignal()` via `useSyncExternalStore`
-- Vue adapter — `signalToRef()`, `readonlySignalToRef()`, `refToSignal()`, `useSignals()`
-- TodoMVC — full state in ~65 lines, 14 tests
-- Property-based tests (fast-check) — lens/prism/signal/cond laws
-
 ## Quick example
 
 ```ts
-import { signal, field, computed, stateful, fst, snd } from 'rainbow'
+import { signal, field, computed, stateful, fst, snd } from '@rhi-zone/rainbow'
 
 type Todo = { id: number; text: string; done: boolean }
 type State = { todos: Todo[]; draft: string }
@@ -42,6 +30,36 @@ const activeCount = computed(
   [todos],
 )
 ```
+
+## Packages
+
+| Package | Description | npm |
+| --- | --- | --- |
+| [`@rhi-zone/rainbow`](./packages/core) | Signals, lenses, prisms, traversals, computed, cond, product — the core primitives | [![npm](https://img.shields.io/npm/v/@rhi-zone/rainbow.svg)](https://www.npmjs.com/package/@rhi-zone/rainbow) |
+| [`@rhi-zone/rainbow-router`](./packages/router) | Trie-based SPA router, signal-native | [![npm](https://img.shields.io/npm/v/@rhi-zone/rainbow-router.svg)](https://www.npmjs.com/package/@rhi-zone/rainbow-router) |
+| [`@rhi-zone/rainbow-ui`](./packages/ui) | Type-safe DOM factories and algebraic widget combinators | [![npm](https://img.shields.io/npm/v/@rhi-zone/rainbow-ui.svg)](https://www.npmjs.com/package/@rhi-zone/rainbow-ui) |
+| [`@rhi-zone/rainbow-url`](./packages/url) | Reactive URL combinators, two-way Signal sync with location | [![npm](https://img.shields.io/npm/v/@rhi-zone/rainbow-url.svg)](https://www.npmjs.com/package/@rhi-zone/rainbow-url) |
+
+## Examples
+
+- [`examples/todomvc`](./examples/todomvc) — TodoMVC with Vue, using rainbow signals for state
+- [`examples/contacts`](./examples/contacts) — Contact manager using rainbow + rainbow-ui
+- [`examples/async-gallery`](./examples/async-gallery) — Async image gallery using rainbow + rainbow-ui
+
+## Development
+
+```bash
+nix develop          # Enter dev shell
+bun install          # Install dependencies
+bun run typecheck    # Type check
+bun run test         # Run tests
+bun run build        # Build library
+cd docs && bun dev   # Local docs
+```
+
+## Contributing
+
+Fork the repo, create a branch, and open a pull request. Commit messages follow [conventional commits](https://www.conventionalcommits.org/) (`feat`, `fix`, `refactor`, `docs`, `chore`, `test`).
 
 ## License
 

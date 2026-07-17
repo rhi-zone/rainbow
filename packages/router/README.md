@@ -71,3 +71,7 @@ router.destroy()
 ## Docs
 
 Full guide and API reference are at the [Rainbow VitePress site](https://rhi.zone/rainbow/).
+
+## License
+
+MIT
