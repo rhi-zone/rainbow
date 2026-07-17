@@ -46,9 +46,9 @@ Key ideas to carry forward:
 |---|---|---|
 | Type-safe route definitions | Prevents broken navs at compile time | Param types inferred by traversing the route tree object |
 | Nested / layout routes | Essential for any multi-page app | Outlet as a signal-driven slot |
-| Async loaders | Data should load before render | Async function on route node, result is `RemoteData<T>` signal |
+| Async loaders | Data should load before render | Async function on route node, result is `AsyncData<T>` signal |
 | Param validation | Corrupt params should 404, not crash | `ParamParser` adapter on route node — fails match, not use-site |
-| Error + pending states | Non-negotiable UX | `RemoteData<T>` = `Loading \| Failure \| Success<T>` |
+| Error + pending states | Non-negotiable UX | `AsyncData<T>` = `Loading \| Failure \| Success<T>` |
 | Active link state | `aria-current` etc | `computed(() => isPrefixMatch(location, href))` |
 | Search params as state | Filters, pagination live in URL | Lens: `Signal<URLSearchParams>` → typed `Signal<T>` |
 
@@ -171,7 +171,7 @@ type Params<T> =
 Signal<URL>                           — source of truth, updated on popstate + navigate()
   └─ computed matchedRoute            — Signal<MatchedRoute | null>
        └─ computed params             — Signal<Record<string, string>> (validated)
-       └─ computed loaderState        — Signal<RemoteData<T>>
+       └─ computed loaderState        — Signal<AsyncData<T>>
   └─ computed searchParams            — Signal<URLSearchParams>
        └─ searchParam(key, parser)    — Signal<T>, bidirectional, ParamParser on read+write
 ```
@@ -212,7 +212,7 @@ _id: {
 ```
 
 `signal` = `AbortSignal`, cancelled on navigation away.
-Result exposed as `Signal<RemoteData<Student>>`.
+Result exposed as `Signal<AsyncData<Student>>`.
 
 No built-in caching. SWR is composable on top with a time-based invalidation
 signal — the router doesn't own that concern.
@@ -226,7 +226,7 @@ signal — the router doesn't own that concern.
 ```ts
 class RouteController<T> implements ReactiveController {
   params!: Record<string, string>;
-  data!:   RemoteData<T>;
+  data!:   AsyncData<T>;
 
   constructor(host: ReactiveControllerHost, router: Router<T>) {
     host.addController(this);
@@ -248,11 +248,11 @@ html`<a href="/admin/students" ${link(router)}>Students</a>`
 
 - `Signal<T>` — `get`, `set`, `subscribe`
 - `computed(fn)` — derived signals
-- **`RemoteData<T>`** — `Loading | Failure | Success<T>`, first-class type
+- **`AsyncData<T>`** — `Loading | Failure | Success<T>`, first-class type
 - Lens / bidirectional signal (search params write back to URL)
 - Effect primitive (navigate has side effects beyond state mutation)
 
-`RemoteData<T>` is the most interesting forcing function. It's not
+`AsyncData<T>` is the most interesting forcing function. It's not
 router-specific — any async operation in the app wants this type. The router
 is just the first consumer.
 

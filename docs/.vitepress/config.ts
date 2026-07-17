@@ -32,6 +32,10 @@ export default withMermaid(defineConfig({
         collapsed: true,
         items: [
           { text: 'Why no dynamic?', link: '/design/dynamic' },
+          { text: 'Router', link: '/design/router' },
+          { text: 'The Stack', link: '/design/stack' },
+          { text: 'UI Elements', link: '/design/ui-elements' },
+          { text: 'Affordance & Commands', link: '/design/affordance-commands' },
         ],
       },
     ],

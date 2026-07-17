@@ -71,6 +71,9 @@ any tooling, future-proof.
 @rhi-zone/rainbow-router   — trie router, signals-based, Lit integration
 ```
 
+Also in play:
+- `@rhi-zone/rainbow-ui`   — page-level combinators, UI helpers
+
 Future packages likely needed:
 - `@rhi-zone/rainbow-lit`  — ReactiveController helpers, directives
 - `@rhi-zone/rainbow-zag`  — Zag.js state machine ↔ Signal bridge
