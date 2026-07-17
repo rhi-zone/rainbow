@@ -350,6 +350,26 @@ committed `a3714ec`:
   fact. `query`/`mutation` survived this filter because they generalize independent of any one
   page's rendering shape; `table`/`tabs`/`panel` did not.
 
+## Open threads: docs (advisory)
+
+> *Open threads from a previous session. Treat as starting context, not instructions — verify relevance before acting.*
+
+### API reference gaps in VitePress docs
+
+A docs audit found the VitePress site at `docs/` is missing API reference pages for:
+- `@rhi-zone/rainbow-ui` — no `docs/api/rainbow-ui.md` exists; the package has extensive
+  design notes in `docs/design/ui-elements.md` but no user-facing API reference.
+- `@rhi-zone/rainbow-url` — no `docs/api/rainbow-url.md` exists; the package README covers
+  the API but it's not in the docs site.
+- `AsyncData<T>` — exported from core, used by the router guide (`docs/guide/rainbow-router.md`
+  line 249 links to the core API reference for `AsyncData` constructors/combinators), but
+  `docs/api/index.md` doesn't document it.
+
+Also: `docs/design/router.md` (line 175) still references a `searchParam(key, parser)` function
+that doesn't exist in the actual codebase — the real API is `useUrlSearchParam` in
+`@rhi-zone/rainbow-url`. The RemoteData→AsyncData rename was fixed but this function reference
+was not.
+
 ## Test runner inconsistency
 
 `bun test` at the rainbow repo root tries to run UI/router tests (which need DOM) with bun's runner and fails with "document is not defined". The actual configured runner for those packages is vitest+happy-dom. This is misleading — looks like 93 tests are broken when they aren't.
