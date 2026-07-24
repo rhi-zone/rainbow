@@ -2,13 +2,15 @@ import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
 
 export default withMermaid(defineConfig({
-  title: 'Rainbow',
+  title: 'rainbow',
   description: 'Optics-based reactivity for the web',
+  base: '/rainbow/',
+  srcExclude: ['**/CLAUDE.md'],
   themeConfig: {
     nav: [
       { text: 'Guide', link: '/guide/' },
       { text: 'API', link: '/api/' },
-      { text: 'rhi', link: 'https://rhi.zone/' },
+      { text: 'rhi', link: 'https://docs.rhi.zone/' },
     ],
     sidebar: [
       {
@@ -42,5 +44,12 @@ export default withMermaid(defineConfig({
     socialLinks: [
       { icon: 'github', link: 'https://github.com/rhi-zone/rainbow' },
     ],
+    search: {
+      provider: 'local'
+    },
+    editLink: {
+      pattern: 'https://github.com/rhi-zone/rainbow/edit/master/docs/:path',
+      text: 'Edit this page on GitHub'
+    },
   },
 }))
